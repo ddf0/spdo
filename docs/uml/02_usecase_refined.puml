@@ -1,0 +1,63 @@
+@startuml
+!include style.iuml
+title Диаграмма прецедентов СПДО (уточнённая: include / extend, точки расширения)
+skinparam nodesep 25
+skinparam ranksep 45
+
+actor "Пользователь" as U
+actor "Оператор\nтехнической поддержки" as O
+actor "Администратор" as A
+actor "Модуль\nсемантического поиска" as M <<система>>
+
+rectangle "Система интеллектуального поиска дубликатов обращений" {
+  usecase "ПЦ3 Просмотреть найденное\nобращение и его решение\n..\n<i>точка расширения:</i>\nрешение опубликовано" as UC3
+  usecase "ПЦ4 Пометить обращение\nкак дубликат" as UC4
+  usecase "ПЦ5 Связать обращения как\nтематически близкие" as UC5
+  usecase "ПЦ6 Отклонить\nрекомендацию" as UC6
+  usecase "ПЦ1 Зарегистрировать обращение\n..\n<i>точки расширения:</i>\nнайдены кандидаты\nвыбран кандидат" as UC1
+  usecase "ПЦ2 Подобрать похожие\nобращения" as UC2
+  usecase "ПЦ7 Обработать обращение\nи опубликовать решение" as UC7
+  usecase "ПЦ8 Вести реестр\nобращений" as UC8
+  usecase "ПЦ9 Просмотреть статистику\nкачества рекомендаций" as UC9
+  usecase "ПЦ10 Настроить\nпараметры поиска" as UC10
+  usecase "ПЦ11 Войти в систему" as UC11
+  usecase "ПЦ12 Оценить полезность\nрешения" as UC12
+}
+
+' ассоциации акторов
+U --> UC1
+O --> UC4
+O --> UC5
+O --> UC7
+O --> UC8
+A --> UC9
+A --> UC10
+UC2 --> M
+
+' extend (точки расширения ПЦ1)
+UC3 .up.> UC1 : <<extend>>\n(найдены кандидаты)
+UC6 .up.> UC1 : <<extend>>\n(найдены кандидаты)
+UC4 .up.> UC1 : <<extend>>\n(выбран кандидат)
+UC5 .up.> UC1 : <<extend>>\n(выбран кандидат)
+UC12 .up.> UC3 : <<extend>>\n(решение опубликовано)
+
+' include
+UC1 .right.> UC2 : <<include>>
+UC1 ..> UC11 : <<include>>
+UC5 ..> UC11 : <<include>>
+UC7 ..> UC11 : <<include>>
+UC8 ..> UC11 : <<include>>
+UC9 ..> UC11 : <<include>>
+UC10 ..> UC11 : <<include>>
+
+' сетка
+U -[hidden]right- O
+O -[hidden]right- A
+UC3 -[hidden]right- UC4
+UC4 -[hidden]right- UC6
+UC6 -[hidden]right- UC5
+UC7 -[hidden]right- UC8
+UC8 -[hidden]right- UC9
+UC9 -[hidden]right- UC10
+UC3 -[hidden]down- UC12
+@enduml

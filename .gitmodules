@@ -1,0 +1,3 @@
+[submodule "tools/md2gost"]
+	path = tools/md2gost
+	url = git@github.com:ddf0/md2gost.git
