@@ -1,4 +1,4 @@
-.PHONY: install up down run lint fmt test metrics metrics-before metrics-after docs-api docs-gost uml
+.PHONY: install up down run migrate lint fmt test metrics metrics-before metrics-after docs-api docs-gost uml
 
 MD2GOST ?= tools/md2gost/md2gost.js
 PLANTUML ?= plantuml
@@ -13,6 +13,9 @@ up:
 
 down:
 	docker compose down
+
+migrate:
+	uv run alembic upgrade head
 
 run:
 	uv run uvicorn spdo.main:app --reload

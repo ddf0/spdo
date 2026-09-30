@@ -24,6 +24,8 @@ class Settings(BaseSettings):
         database_url: Строка подключения SQLAlchemy к PostgreSQL.
         secret_key: Ключ подписи сессий.
         embedding_model: Идентификатор модели sentence-transformers.
+        embedding_dim: Размерность векторного представления модели; при
+            смене модели требуется миграция столбца и переиндексация.
         search_mode: Базовый (лексический) или гибридный режим.
         threshold_duplicate: Порог P1 — «возможный дубликат».
         threshold_related: Порог P2 — «возможно связанное».
@@ -39,6 +41,7 @@ class Settings(BaseSettings):
     database_url: str = "postgresql+psycopg://spdo:spdo@localhost:5432/spdo"
     secret_key: str = "change-me"
     embedding_model: str = "cointegrated/rubert-tiny2"
+    embedding_dim: int = 312
     search_mode: SearchMode = SearchMode.HYBRID
     threshold_duplicate: float = 0.80
     threshold_related: float = 0.60
