@@ -14,6 +14,8 @@ pgvector), лексического (TF-IDF/BM25), категориальног�
 cp .env.example .env
 make install
 make up          # PostgreSQL + pgvector и приложение, http://localhost:8000
+                 # миграции применяются при старте контейнера;
+                 # локально: make migrate
 ```
 
 ## Документация
