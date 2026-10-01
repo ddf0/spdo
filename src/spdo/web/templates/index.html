@@ -1,0 +1,7 @@
+{% extends "base.html" %}
+{% block content %}
+<section class="card">
+  <h1>Здравствуйте, {{ user.full_name }}</h1>
+  <p>Вы вошли с ролью «{{ role_labels[user.role] }}».</p>
+</section>
+{% endblock %}

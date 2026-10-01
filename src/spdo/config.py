@@ -4,10 +4,14 @@
 или из файла ``.env``. Константы порогов и весов в коде не допускаются.
 """
 
+import secrets
 from enum import StrEnum
 
-from pydantic import model_validator
+from pydantic import PrivateAttr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+#: Значения ключа подписи сессий, считающиеся незаданными.
+UNSET_SECRET_KEYS = frozenset({"", "change-me"})
 
 
 class SearchMode(StrEnum):
@@ -22,7 +26,12 @@ class Settings(BaseSettings):
 
     Attributes:
         database_url: Строка подключения SQLAlchemy к PostgreSQL.
-        secret_key: Ключ подписи сессий.
+        secret_key: Ключ подписи сессий. Если не задан, при запуске
+            генерируется случайный: подделать сессию нельзя, но сессии
+            сбрасываются при перезапуске.
+        session_max_age: Время жизни сессии пользователя, секунды.
+        session_https_only: Передавать cookie сессии только по HTTPS.
+        password_rounds: Стоимость bcrypt (логарифм числа раундов).
         embedding_model: Идентификатор модели sentence-transformers.
         embedding_dim: Размерность векторного представления модели; при
             смене модели требуется миграция столбца и переиндексация.
@@ -39,7 +48,10 @@ class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_prefix="SPDO_", env_file=".env", extra="ignore")
 
     database_url: str = "postgresql+psycopg://spdo:spdo@localhost:5432/spdo"
-    secret_key: str = "change-me"
+    secret_key: str = ""
+    session_max_age: int = 8 * 60 * 60
+    session_https_only: bool = False
+    password_rounds: int = 12
     embedding_model: str = "cointegrated/rubert-tiny2"
     embedding_dim: int = 312
     search_mode: SearchMode = SearchMode.HYBRID
@@ -50,6 +62,8 @@ class Settings(BaseSettings):
     w_lexical: float = 0.15
     w_category: float = 0.15
     w_component: float = 0.15
+
+    _secret_key_generated: bool = PrivateAttr(default=False)
 
     @model_validator(mode="after")
     def _check_search_params(self) -> "Settings":
@@ -70,6 +84,26 @@ class Settings(BaseSettings):
         if min(weights) < 0 or abs(sum(weights) - 1) > 1e-6:
             raise ValueError("Веса должны быть неотрицательны, их сумма равна 1")
         return self
+
+    @model_validator(mode="after")
+    def _ensure_secret_key(self) -> "Settings":
+        """Заменяет незаданный ключ подписи сессий случайным.
+
+        Известный всем ключ по умолчанию позволил бы подписать cookie с
+        любым идентификатором пользователя, поэтому он не используется.
+
+        Returns:
+            Настройки с непредсказуемым ключом.
+        """
+        if self.secret_key in UNSET_SECRET_KEYS:
+            self.secret_key = secrets.token_urlsafe(48)
+            self._secret_key_generated = True
+        return self
+
+    @property
+    def secret_key_generated(self) -> bool:
+        """Ключ подписи сессий сгенерирован при запуске, а не задан явно."""
+        return self._secret_key_generated
 
 
 settings = Settings()

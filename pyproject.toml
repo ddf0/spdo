@@ -19,11 +19,15 @@ dependencies = [
   "alembic>=1.13",
   "psycopg[binary]>=3.2",
   "pgvector>=0.3",
-  "passlib[bcrypt]>=1.7",
   "sentence-transformers>=3.0",
   "scikit-learn>=1.5",
   "rank-bm25>=0.2.2",
+  "bcrypt>=4.2",
+  "itsdangerous>=2.2",
 ]
+
+[project.scripts]
+spdo = "spdo.cli:main"
 
 [dependency-groups]
 dev = [
