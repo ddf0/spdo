@@ -7,7 +7,7 @@
 import secrets
 from enum import StrEnum
 
-from pydantic import PrivateAttr, model_validator
+from pydantic import Field, PrivateAttr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 #: Значения ключа подписи сессий, считающиеся незаданными.
@@ -43,6 +43,10 @@ class Settings(BaseSettings):
         w_lexical: Вес лексического сходства w2.
         w_category: Вес совпадения категории w3.
         w_component: Вес совпадения компонента w4.
+        resolved_close_days: Срок в днях, после которого решённое, но не
+            подтверждённое автором обращение может быть закрыто командой
+            ``spdo close-expired``. В ТЗ значение не задано; 14 дней —
+            допущение разработчиков.
     """
 
     model_config = SettingsConfigDict(env_prefix="SPDO_", env_file=".env", extra="ignore")
@@ -62,6 +66,7 @@ class Settings(BaseSettings):
     w_lexical: float = 0.15
     w_category: float = 0.15
     w_component: float = 0.15
+    resolved_close_days: int = Field(default=14, ge=1)
 
     _secret_key_generated: bool = PrivateAttr(default=False)
 
