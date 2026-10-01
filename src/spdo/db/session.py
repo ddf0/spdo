@@ -7,8 +7,9 @@ from sqlalchemy.orm import Session, sessionmaker
 
 from spdo.config import settings
 
-#: Движок подключения к PostgreSQL.
-engine = create_engine(settings.database_url, pool_pre_ping=True)
+#: Движок подключения к PostgreSQL. Параметры запросов не попадают в тексты
+#: ошибок и журналы: среди них бывают хеши паролей.
+engine = create_engine(settings.database_url, pool_pre_ping=True, hide_parameters=True)
 
 #: Фабрика сессий; фиксация транзакции выполняется явно.
 SessionLocal = sessionmaker(bind=engine, autoflush=False, expire_on_commit=False)
