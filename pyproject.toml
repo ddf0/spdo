@@ -26,6 +26,9 @@ dependencies = [
   "itsdangerous>=2.2",
 ]
 
+[project.scripts]
+spdo = "spdo.cli:main"
+
 [dependency-groups]
 dev = [
   "ruff>=0.6",
