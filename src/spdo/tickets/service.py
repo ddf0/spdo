@@ -19,6 +19,7 @@ from spdo.tickets.access import (
     PermissionDeniedError,
     TicketNotFoundError,
     TicketValidationError,
+    can_reference,
     can_view,
     require_admin,
     require_staff,
@@ -36,6 +37,9 @@ from spdo.tickets.models import (
     TicketStatus,
 )
 from spdo.tickets.transitions import Trigger, check_transition
+
+#: Режим блокировки строки обращения при изменении: ``FOR NO KEY UPDATE``.
+ROW_LOCK = {"key_share": True}
 
 
 def _clean_text(value: str, field: str, limit: int) -> str:
@@ -152,12 +156,61 @@ def get_ticket(session: Session, actor: Actor, ticket_id: int, *, lock: bool = F
     Raises:
         TicketNotFoundError: Обращение не существует или чужое.
     """
-    # populate_existing: после ожидания блокировки перечитать строку, а не
-    # доверять объекту, уже загруженному в сессию до чужого изменения.
-    ticket = session.get(Ticket, ticket_id, with_for_update=lock, populate_existing=lock)
+    # FOR NO KEY UPDATE не конфликтует с KEY SHARE, который берут внешние
+    # ключи при вставке связей и истории, — встречные операции не блокируют
+    # друг друга. populate_existing: после ожидания блокировки перечитать
+    # строку, а не доверять объекту, загруженному до чужого изменения.
+    for_update = ROW_LOCK if lock else None
+    ticket = session.get(Ticket, ticket_id, with_for_update=for_update, populate_existing=lock)
     if ticket is None or not can_view(actor, ticket):
         raise TicketNotFoundError(f"Обращение {ticket_id} не найдено")
     return ticket
+
+
+def get_link_target(session: Session, actor: Actor, ticket_id: int) -> Ticket:
+    """Возвращает обращение, на которое пользователь может сослаться связью.
+
+    Args:
+        session: Сессия БД.
+        actor: Пользователь, устанавливающий связь.
+        ticket_id: Номер обращения — цели связи.
+
+    Returns:
+        Обращение.
+
+    Raises:
+        TicketNotFoundError: Обращение не существует или чужое
+            конфиденциальное.
+    """
+    ticket = session.get(Ticket, ticket_id)
+    if ticket is None or not can_reference(actor, ticket):
+        raise TicketNotFoundError(f"Обращение {ticket_id} не найдено")
+    return ticket
+
+
+def record_link(
+    session: Session, actor: Actor, ticket_id: int, other_id: int, kind: str, comment: str = ""
+) -> None:
+    """Записывает в историю обращения установление связи с другим обращением.
+
+    Вызывается модулем ``relations`` в транзакции создания связи для
+    каждого из двух связанных обращений.
+
+    Args:
+        session: Сессия БД.
+        actor: Пользователь, установивший связь.
+        ticket_id: Обращение, в историю которого пишется запись.
+        other_id: Второе обращение связи.
+        kind: Вид связи — значение ``RelationKind`` модуля ``relations``.
+        comment: Пояснение.
+
+    Raises:
+        TicketNotFoundError: Обращение не существует.
+    """
+    ticket = session.get(Ticket, ticket_id)
+    if ticket is None:
+        raise TicketNotFoundError(f"Обращение {ticket_id} не найдено")
+    _add_history(session, ticket, actor, ChangeKind.LINK, None, f"{kind}:{other_id}", comment)
 
 
 def get_history(session: Session, actor: Actor, ticket_id: int) -> list[HistoryEntry]:
@@ -447,7 +500,7 @@ def close_expired(session: Session, actor: Actor, days: int, now: datetime) -> l
     cutoff = now - timedelta(days=days)
     closed: list[int] = []
     for ticket in find_expired(session, days, now):
-        session.refresh(ticket, with_for_update=True)
+        session.refresh(ticket, with_for_update=ROW_LOCK)
         # Пока ждали блокировку, обращение могли открыть и решить заново.
         still_expired = session.scalar(_expired_stmt(cutoff).where(Ticket.id == ticket.id))
         if still_expired is None:

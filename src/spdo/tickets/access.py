@@ -73,6 +73,23 @@ def can_view(actor: Actor, ticket: Ticket) -> bool:
     return is_staff(actor) or ticket.author_id == actor.id
 
 
+def can_reference(actor: Actor, ticket: Ticket) -> bool:
+    """Проверяет право сослаться на обращение — сделать его целью связи.
+
+    Ссылаться можно на свои обращения, на любые — оператору, а на чужие
+    неконфиденциальные — любому пользователю: такие обращения он видит в
+    рекомендациях.
+
+    Args:
+        actor: Пользователь.
+        ticket: Обращение — цель связи.
+
+    Returns:
+        ``True``, если связь с обращением допустима.
+    """
+    return can_view(actor, ticket) or not ticket.confidential
+
+
 def require_staff(actor: Actor) -> None:
     """Допускает только оператора или администратора.
 
