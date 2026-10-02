@@ -22,7 +22,8 @@ make up          # PostgreSQL + pgvector и приложение, http://localho
 
 - на код (Sphinx, аналог Doxygen): `make docs-api` → `docs/api/_build/html/index.html`;
 - проектная по ГОСТ: `make docs-gost` → `docs/gost/build/` (конвертер md2gost, сабмодуль `tools/md2gost`);
-- UML-модель: `docs/uml/`.
+- UML-модель: `docs/uml/`;
+- вики проекта: https://github.com/ddf0/spdo/wiki.
 
 ## Авторы
 
