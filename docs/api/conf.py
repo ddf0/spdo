@@ -5,10 +5,12 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parents[2] / "src"))
 
+import spdo  # noqa: E402  путь к исходникам добавлен строкой выше
+
 project = "СПДО"
 author = "В.А. Елькин, Д.С. Красавин"
 copyright = "2026, " + author
-release = "0.1.0"
+release = spdo.__version__
 language = "ru"
 
 extensions = [
