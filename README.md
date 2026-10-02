@@ -21,7 +21,7 @@ make up          # PostgreSQL + pgvector и приложение, http://localho
 ## Документация
 
 - на код (Sphinx, аналог Doxygen): `make docs-api` → HTML в `docs/api/_build/html/`,
-  `make docs-api-rtf` → `docs/api/_build/rtf/spdo.rtf`;
+  `make docs-api-docx` → Word по ГОСТ 19.106 через md2gost в `docs/api/_build/docx/`;
 - проектная по ГОСТ: `make docs-gost` → `docs/gost/build/` (конвертер md2gost, сабмодуль `tools/md2gost`);
 - UML-модель: `docs/uml/`.
 
