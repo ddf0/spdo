@@ -50,7 +50,7 @@ docs-api:
 	uv run sphinx-build -b html -W --keep-going docs/api docs/api/_build/html
 
 docs-api-rtf:
-	uv run sphinx-build -b singlehtml -W --keep-going docs/api docs/api/_build/singlehtml
+	uv run sphinx-build -b singlehtml -W --keep-going -D html_theme=basic docs/api docs/api/_build/singlehtml
 	@mkdir -p docs/api/_build/rtf
 	pandoc -f html -t rtf -s docs/api/_build/singlehtml/index.html -o docs/api/_build/rtf/spdo.rtf
 	@echo "RTF: docs/api/_build/rtf/spdo.rtf"
