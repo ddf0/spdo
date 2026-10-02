@@ -1,12 +1,12 @@
 .PHONY: install up down run migrate lint fmt test metrics metrics-before metrics-after docs-api docs-api-rtf docs-gost uml
 
-MD2GOST ?= tools/md2gost/md2gost.js
+MD2GOST ?= tools/md2gost/md2gost/md2gost.js
 PLANTUML ?= plantuml
 GOST_SRC := $(filter-out docs/gost/src/_%,$(wildcard docs/gost/src/*.md))
 
 install:
 	uv sync
-	@if [ -f tools/md2gost/package.json ]; then cd tools/md2gost && npm ci --silent; fi
+	@if [ -f tools/md2gost/md2gost/package.json ]; then cd tools/md2gost/md2gost && npm ci --silent; fi
 
 up:
 	docker compose up -d --build
