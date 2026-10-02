@@ -19,6 +19,7 @@ from spdo.tickets.access import (
     PermissionDeniedError,
     TicketNotFoundError,
     TicketValidationError,
+    can_reference,
     can_view,
     require_admin,
     require_staff,
@@ -164,6 +165,52 @@ def get_ticket(session: Session, actor: Actor, ticket_id: int, *, lock: bool = F
     if ticket is None or not can_view(actor, ticket):
         raise TicketNotFoundError(f"Обращение {ticket_id} не найдено")
     return ticket
+
+
+def get_link_target(session: Session, actor: Actor, ticket_id: int) -> Ticket:
+    """Возвращает обращение, на которое пользователь может сослаться связью.
+
+    Args:
+        session: Сессия БД.
+        actor: Пользователь, устанавливающий связь.
+        ticket_id: Номер обращения — цели связи.
+
+    Returns:
+        Обращение.
+
+    Raises:
+        TicketNotFoundError: Обращение не существует или чужое
+            конфиденциальное.
+    """
+    ticket = session.get(Ticket, ticket_id)
+    if ticket is None or not can_reference(actor, ticket):
+        raise TicketNotFoundError(f"Обращение {ticket_id} не найдено")
+    return ticket
+
+
+def record_link(
+    session: Session, actor: Actor, ticket_id: int, other_id: int, kind: str, comment: str = ""
+) -> None:
+    """Записывает в историю обращения установление связи с другим обращением.
+
+    Вызывается модулем ``relations`` в транзакции создания связи для
+    каждого из двух связанных обращений.
+
+    Args:
+        session: Сессия БД.
+        actor: Пользователь, установивший связь.
+        ticket_id: Обращение, в историю которого пишется запись.
+        other_id: Второе обращение связи.
+        kind: Вид связи — значение ``RelationKind`` модуля ``relations``.
+        comment: Пояснение.
+
+    Raises:
+        TicketNotFoundError: Обращение не существует.
+    """
+    ticket = session.get(Ticket, ticket_id)
+    if ticket is None:
+        raise TicketNotFoundError(f"Обращение {ticket_id} не найдено")
+    _add_history(session, ticket, actor, ChangeKind.LINK, None, f"{kind}:{other_id}", comment)
 
 
 def get_history(session: Session, actor: Actor, ticket_id: int) -> list[HistoryEntry]:
