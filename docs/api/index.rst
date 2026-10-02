@@ -12,8 +12,40 @@
 
 Решение о связывании обращений принимает пользователь или оператор.
 
+Архитектура — модульный монолит: каждая подсистема — пакет Python со своими
+моделями и сервисными функциями; подсистемы обращаются друг к другу только
+через сервисные функции. Поисковый модуль не зависит от бизнес-модулей.
+
+Подсистемы
+----------
+
+.. toctree::
+   :maxdepth: 1
+
+   pages/users
+   pages/tikets
+   pages/search
+   pages/db
+
+Ключевые файлы
+--------------
+
+* :mod:`spdo.config` — параметры приложения и поиска (пороги, веса, N);
+* :mod:`spdo.main` — приложение FastAPI: сессии, маршруты, защитные заголовки;
+* :mod:`spdo.cli` — команды администрирования ``spdo create-user``,
+  ``spdo close-expired``;
+* :mod:`spdo.users.service` — учётные записи и аутентификация;
+* :mod:`spdo.tickets.service` — регистрация обращений, статусы, решения;
+* :mod:`spdo.tickets.transitions` — таблица допустимых переходов статусов;
+* :mod:`spdo.search.base` — интерфейс поиска похожих обращений.
+
 Иерархия поисковиков
 --------------------
+
+Производные классы :class:`~spdo.search.lexical.LexicalSearcher` и
+:class:`~spdo.search.hybrid.HybridSearcher` наследуют от
+:class:`~spdo.search.base.SimilaritySearcher` общую логику порогов и
+переопределяют вычисление сходства.
 
 .. inheritance-diagram:: spdo.search.lexical spdo.search.hybrid
    :parts: 1
