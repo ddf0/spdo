@@ -23,7 +23,7 @@
    :maxdepth: 1
 
    pages/users
-   pages/tikets
+   pages/tickets
    pages/search
    pages/db
 
