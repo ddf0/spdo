@@ -37,6 +37,9 @@ from spdo.tickets.models import (
 )
 from spdo.tickets.transitions import Trigger, check_transition
 
+#: Режим блокировки строки обращения при изменении: ``FOR NO KEY UPDATE``.
+ROW_LOCK = {"key_share": True}
+
 
 def _clean_text(value: str, field: str, limit: int) -> str:
     """Обрезает пробелы по краям и проверяет длину текста.
@@ -152,9 +155,12 @@ def get_ticket(session: Session, actor: Actor, ticket_id: int, *, lock: bool = F
     Raises:
         TicketNotFoundError: Обращение не существует или чужое.
     """
-    # populate_existing: после ожидания блокировки перечитать строку, а не
-    # доверять объекту, уже загруженному в сессию до чужого изменения.
-    ticket = session.get(Ticket, ticket_id, with_for_update=lock, populate_existing=lock)
+    # FOR NO KEY UPDATE не конфликтует с KEY SHARE, который берут внешние
+    # ключи при вставке связей и истории, — встречные операции не блокируют
+    # друг друга. populate_existing: после ожидания блокировки перечитать
+    # строку, а не доверять объекту, загруженному до чужого изменения.
+    for_update = ROW_LOCK if lock else None
+    ticket = session.get(Ticket, ticket_id, with_for_update=for_update, populate_existing=lock)
     if ticket is None or not can_view(actor, ticket):
         raise TicketNotFoundError(f"Обращение {ticket_id} не найдено")
     return ticket
@@ -447,7 +453,7 @@ def close_expired(session: Session, actor: Actor, days: int, now: datetime) -> l
     cutoff = now - timedelta(days=days)
     closed: list[int] = []
     for ticket in find_expired(session, days, now):
-        session.refresh(ticket, with_for_update=True)
+        session.refresh(ticket, with_for_update=ROW_LOCK)
         # Пока ждали блокировку, обращение могли открыть и решить заново.
         still_expired = session.scalar(_expired_stmt(cutoff).where(Ticket.id == ticket.id))
         if still_expired is None:
