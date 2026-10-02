@@ -1,4 +1,4 @@
-.PHONY: install up down run migrate lint fmt test metrics metrics-before metrics-after docs-api docs-gost uml
+.PHONY: install up down run migrate lint fmt test metrics metrics-before metrics-after docs-api docs-api-rtf docs-gost uml
 
 MD2GOST ?= tools/md2gost/md2gost.js
 PLANTUML ?= plantuml
@@ -48,6 +48,12 @@ metrics-after:
 
 docs-api:
 	uv run sphinx-build -b html -W --keep-going docs/api docs/api/_build/html
+
+docs-api-rtf:
+	uv run sphinx-build -b singlehtml -W --keep-going docs/api docs/api/_build/singlehtml
+	@mkdir -p docs/api/_build/rtf
+	pandoc -f html -t rtf -s docs/api/_build/singlehtml/index.html -o docs/api/_build/rtf/spdo.rtf
+	@echo "RTF: docs/api/_build/rtf/spdo.rtf"
 
 docs-gost:
 	@mkdir -p docs/gost/build
