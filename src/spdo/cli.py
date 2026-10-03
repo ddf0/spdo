@@ -187,6 +187,30 @@ def cmd_dataset_verify(args: argparse.Namespace) -> int:
     return 1
 
 
+def cmd_dataset_freeze(args: argparse.Namespace) -> int:
+    """Проверяет набор и фиксирует контрольную сумму после ручной правки.
+
+    Если проверочная часть уже зафиксирована и изменилась, требуется
+    ``--force``: замена проверочной части должна быть осознанной.
+
+    Args:
+        args: Разобранные аргументы: ``dir``, ``force``.
+
+    Returns:
+        Код завершения: 0 — успех, 1 — ошибка формата или отказ без ``--force``.
+    """
+    directory = Path(args.dir)
+    try:
+        data = dataset.read(directory)
+        extra = tuple(f for f in data.tickets[0] if f not in dataset.TICKET_FIELDS)
+        checksum = dataset.write(directory, data, extra, force=args.force)
+    except dataset.DatasetError as exc:
+        print(f"Ошибка: {exc}", file=sys.stderr)
+        return 1
+    print(f"Проверочная часть зафиксирована: {checksum}")
+    return 0
+
+
 def cmd_dataset_load(args: argparse.Namespace) -> int:
     """Загружает обращения набора в БД от имени администратора.
 
@@ -239,6 +263,10 @@ def _add_dataset_commands(commands: argparse._SubParsersAction) -> None:
     ver = sub.add_parser("verify", help="сверить проверочную часть с контрольной суммой")
     ver.add_argument("dir", help="каталог набора")
     ver.set_defaults(handler=cmd_dataset_verify)
+    frz = sub.add_parser("freeze", help="проверить набор и зафиксировать контрольную сумму")
+    frz.add_argument("dir", help="каталог набора")
+    frz.add_argument("--force", action="store_true", help="заменить зафиксированную часть")
+    frz.set_defaults(handler=cmd_dataset_freeze)
     load = sub.add_parser("load", help="загрузить обращения набора в БД")
     load.add_argument("dir", help="каталог набора")
     load.add_argument("--admin", required=True, help="администратор — автор обращений")
