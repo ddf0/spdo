@@ -1,4 +1,4 @@
-.PHONY: install up down run migrate lint fmt test metrics metrics-before metrics-after docs-api docs-api-docx docs-gost uml
+.PHONY: install up down run migrate lint fmt test metrics metrics-before metrics-after metrics-compare docs-api docs-api-docx docs-gost uml
 
 MD2GOST ?= tools/md2gost/md2gost/md2gost.js
 PLANTUML ?= plantuml
@@ -38,6 +38,11 @@ metrics:
 	uv run radon raw src -s          > reports/$(or $(TAG),current)/raw.txt
 	uv run radon hal src             > reports/$(or $(TAG),current)/hal.txt
 	uv run radon cc src -j           > reports/$(or $(TAG),current)/cc.json
+	uv run radon mi src -j           > reports/$(or $(TAG),current)/mi.json
+	uv run radon raw src -j          > reports/$(or $(TAG),current)/raw.json
+	uv run radon hal src -j          > reports/$(or $(TAG),current)/hal.json
+	uv run python tools/code_metrics.py src/spdo > reports/$(or $(TAG),current)/code_metrics.json
+	uv run python tools/metrics_report.py reports/$(or $(TAG),current) > reports/$(or $(TAG),current)/summary.md
 	@echo "Отчёты: reports/$(or $(TAG),current)/"
 
 metrics-before:
@@ -45,6 +50,10 @@ metrics-before:
 
 metrics-after:
 	$(MAKE) metrics TAG=metrics-after
+
+metrics-compare:
+	uv run python tools/metrics_report.py reports/metrics-before reports/metrics-after > reports/metrics-comparison.md
+	@echo "Сравнение: reports/metrics-comparison.md"
 
 docs-api:
 	uv run sphinx-build -b html -W --keep-going docs/api docs/api/_build/html
