@@ -43,6 +43,18 @@ class Settings(BaseSettings):
         w_lexical: Вес лексического сходства w2.
         w_category: Вес совпадения категории w3.
         w_component: Вес совпадения компонента w4.
+        lexical_w_lexical: Вес лексического сходства в базовом режиме (w1 = 0).
+        lexical_w_category: Вес совпадения категории в базовом режиме.
+        lexical_w_component: Вес совпадения компонента в базовом режиме.
+        lexical_threshold_duplicate: Порог P1 базового режима.
+        lexical_threshold_related: Порог P2 базового режима. Шкала косинуса
+            TF-IDF ниже семантической, поэтому пороги режимов различаются.
+            Значения по умолчанию весов и порогов базового режима подобраны
+            командой ``spdo tune`` на настроечной части эталонного набора.
+        search_warm_up: Строить поисковый индекс в фоне при запуске
+            приложения (в тестах отключается).
+        candidate_pool: Число кандидатов с наибольшим текстовым сходством,
+            для которых вычисляется итоговый S.
         resolved_close_days: Срок в днях, после которого решённое, но не
             подтверждённое автором обращение может быть закрыто командой
             ``spdo close-expired``. В ТЗ значение не задано; 14 дней —
@@ -58,7 +70,7 @@ class Settings(BaseSettings):
     password_rounds: int = 12
     embedding_model: str = "cointegrated/rubert-tiny2"
     embedding_dim: int = 312
-    search_mode: SearchMode = SearchMode.HYBRID
+    search_mode: SearchMode = SearchMode.LEXICAL
     threshold_duplicate: float = 0.80
     threshold_related: float = 0.60
     top_n: int = 10
@@ -66,6 +78,13 @@ class Settings(BaseSettings):
     w_lexical: float = 0.15
     w_category: float = 0.15
     w_component: float = 0.15
+    lexical_w_lexical: float = 1.0
+    lexical_w_category: float = 0.0
+    lexical_w_component: float = 0.0
+    lexical_threshold_duplicate: float = 0.23
+    lexical_threshold_related: float = 0.21
+    candidate_pool: int = Field(default=50, ge=10, le=500)
+    search_warm_up: bool = True
     resolved_close_days: int = Field(default=14, ge=1)
 
     _secret_key_generated: bool = PrivateAttr(default=False)
@@ -81,13 +100,19 @@ class Settings(BaseSettings):
             ValueError: Нарушено условие 0 < P2 < P1 ≤ 1, 1 ≤ N ≤ 10
                 или веса отрицательны либо не дают в сумме 1.
         """
-        if not 0 < self.threshold_related < self.threshold_duplicate <= 1:
-            raise ValueError("Требуется 0 < P2 < P1 <= 1")
+        for p1, p2 in (
+            (self.threshold_duplicate, self.threshold_related),
+            (self.lexical_threshold_duplicate, self.lexical_threshold_related),
+        ):
+            if not 0 < p2 < p1 <= 1:
+                raise ValueError("Требуется 0 < P2 < P1 <= 1")
         if not 1 <= self.top_n <= 10:
             raise ValueError("Требуется 1 <= N <= 10")
-        weights = (self.w_semantic, self.w_lexical, self.w_category, self.w_component)
-        if min(weights) < 0 or abs(sum(weights) - 1) > 1e-6:
-            raise ValueError("Веса должны быть неотрицательны, их сумма равна 1")
+        hybrid = (self.w_semantic, self.w_lexical, self.w_category, self.w_component)
+        lexical = (self.lexical_w_lexical, self.lexical_w_category, self.lexical_w_component)
+        for weights in (hybrid, lexical):
+            if min(weights) < 0 or abs(sum(weights) - 1) > 1e-6:
+                raise ValueError("Веса должны быть неотрицательны, их сумма равна 1")
         return self
 
     @model_validator(mode="after")
