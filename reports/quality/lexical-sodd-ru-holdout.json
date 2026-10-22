@@ -1,0 +1,21 @@
+{
+  "dataset": "data/external/sodd-ru",
+  "split": "holdout",
+  "mode": "lexical",
+  "model_version": "tfidf-charwb-3-5-v1",
+  "params": {
+    "weights": [
+      1.0,
+      0.0,
+      0.0
+    ],
+    "threshold_duplicate": 0.23,
+    "threshold_related": 0.21
+  },
+  "queries": 200,
+  "recall_at_3": 0.73,
+  "recall_at_3_shown": 0.36,
+  "hit_at_3": 0.73,
+  "mrr": 0.6700139899164194,
+  "false_duplicate_rate": 0.155
+}

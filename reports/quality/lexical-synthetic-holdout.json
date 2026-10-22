@@ -1,0 +1,21 @@
+{
+  "dataset": "data/synthetic",
+  "split": "holdout",
+  "mode": "lexical",
+  "model_version": "tfidf-charwb-3-5-v1",
+  "params": {
+    "weights": [
+      1.0,
+      0.0,
+      0.0
+    ],
+    "threshold_duplicate": 0.23,
+    "threshold_related": 0.21
+  },
+  "queries": 32,
+  "recall_at_3": 0.7395833333333335,
+  "recall_at_3_shown": 0.6875,
+  "hit_at_3": 0.96875,
+  "mrr": 0.9244791666666666,
+  "false_duplicate_rate": 0.2692307692307692
+}

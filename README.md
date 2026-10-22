@@ -18,6 +18,24 @@ make up          # PostgreSQL + pgvector и приложение, http://localho
                  # локально: make migrate
 ```
 
+## Поиск похожих обращений
+
+Режим (`SPDO_SEARCH_MODE`): `lexical` — базовый, TF-IDF по символьным
+n-граммам; `hybrid` — с семантической составляющей. Индекс обновляется при
+регистрации обращения; для уже имеющихся обращений:
+
+```bash
+uv run spdo reindex --admin <администратор>
+```
+
+Качество подбора на эталонном наборе (recall@3 и др., ТЗ п. 8.2) и подбор
+весов и порогов базового режима на настроечной части:
+
+```bash
+uv run spdo eval data/synthetic --json reports/quality/<имя>.json
+uv run spdo tune data/synthetic
+```
+
 ## Документация
 
 - на код (Sphinx, аналог Doxygen): `make docs-api` → HTML в `docs/api/_build/html/`,
