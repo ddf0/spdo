@@ -1,6 +1,7 @@
 """Точка входа веб-приложения FastAPI."""
 
 import logging
+import threading
 from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from urllib.parse import quote
@@ -13,15 +14,26 @@ from starlette.middleware.sessions import SessionMiddleware
 from spdo import __version__, logsafe
 from spdo.config import settings
 from spdo.db import models  # noqa: F401  регистрирует таблицы всех модулей
+from spdo.db.session import SessionLocal
+from spdo.search.factory import get_searcher
 from spdo.users.deps import NotAuthenticatedError
 from spdo.users.routes import router as users_router
 from spdo.web.routes import router as web_router
 from spdo.web.templating import STATIC_DIR
 
 
+def _warm_up_search() -> None:
+    """Прогревает поисковик в фоне; ошибка прогрева не мешает запуску."""
+    try:
+        with SessionLocal() as session:
+            get_searcher().warm_up(session)
+    except Exception:  # noqa: BLE001 — недоступность поиска не блокирует работу (ТЗ)
+        logging.getLogger(__name__).exception("Не удалось подготовить поиск при запуске")
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-    """Подключает фильтр секретов к журналам после настройки uvicorn.
+    """Подключает фильтр секретов к журналам и прогревает поиск в фоне.
 
     Предупреждает, если ключ подписи сессий не задан и сгенерирован.
 
@@ -29,6 +41,8 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         Управление приложению на время работы.
     """
     logsafe.install()
+    if settings.search_warm_up:
+        threading.Thread(target=_warm_up_search, name="search-warm-up", daemon=True).start()
     if settings.secret_key_generated:
         logging.getLogger(__name__).warning(
             "SPDO_SECRET_KEY не задан: ключ случайный, сессии сбросятся при перезапуске"

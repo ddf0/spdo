@@ -6,6 +6,7 @@
 вызывающего кода.
 """
 
+import logging
 from datetime import datetime, timedelta
 
 from sqlalchemy import Select, func, select
@@ -14,6 +15,8 @@ from sqlalchemy.sql import Subquery
 
 from spdo.analytics.journal import record_action
 from spdo.analytics.models import ActionKind
+from spdo.search.base import IndexedTicket
+from spdo.search.factory import get_searcher
 from spdo.tickets.access import (
     Actor,
     PermissionDeniedError,
@@ -37,6 +40,8 @@ from spdo.tickets.models import (
     TicketStatus,
 )
 from spdo.tickets.transitions import Trigger, check_transition
+
+logger = logging.getLogger(__name__)
 
 #: Режим блокировки строки обращения при изменении: ``FOR NO KEY UPDATE``.
 ROW_LOCK = {"key_share": True}
@@ -131,6 +136,7 @@ def create_ticket(
     session.add(ticket)
     session.flush()
     _add_history(session, ticket, actor, ChangeKind.CREATED, None, TicketStatus.NEW.value)
+    _index_softly(session, ticket)
     if draft_id is not None:
         # Чужой или уже удалённый черновик не мешает регистрации.
         draft = session.get(TicketDraft, draft_id)
@@ -138,6 +144,65 @@ def create_ticket(
             session.delete(draft)
     session.flush()
     return ticket
+
+
+def _index(session: Session, ticket: Ticket) -> None:
+    """Передаёт обращение в поисковый индекс в текущей транзакции.
+
+    Raises:
+        Exception: Поисковик недоступен или запись индекса не удалась.
+    """
+    get_searcher().index(
+        session,
+        IndexedTicket(
+            ticket_id=ticket.id,
+            title=ticket.title,
+            description=ticket.description,
+            category_id=ticket.category_id,
+            component_id=ticket.component_id,
+            author_id=ticket.author_id,
+            confidential=ticket.confidential,
+        ),
+    )
+
+
+def _index_softly(session: Session, ticket: Ticket) -> None:
+    """Индексирует обращение; сбой поиска не отменяет регистрацию.
+
+    ТЗ: недоступность поиска не блокирует регистрацию. Запись индекса
+    выполняется в точке сохранения, чтобы её сбой не прерывал транзакцию;
+    пропущенное обращение позже добавит ``spdo reindex``.
+    """
+    try:
+        with session.begin_nested():
+            _index(session, ticket)
+    except Exception:  # noqa: BLE001 — любой сбой поиска не должен мешать регистрации
+        logger.exception("Обращение %s не добавлено в поисковый индекс", ticket.id)
+
+
+def reindex_all(session: Session, actor: Actor) -> int:
+    """Перестраивает поисковый индекс по всем обращениям реестра.
+
+    Нужна после смены модели или режима поиска и для обращений,
+    зарегистрированных до появления индекса.
+
+    Args:
+        session: Сессия БД.
+        actor: Администратор.
+
+    Returns:
+        Число проиндексированных обращений.
+
+    Raises:
+        PermissionDeniedError: Пользователь не администратор.
+    """
+    require_admin(actor)
+    count = 0
+    for ticket in session.scalars(select(Ticket).order_by(Ticket.id)):
+        _index(session, ticket)
+        count += 1
+    session.flush()
+    return count
 
 
 def get_ticket(session: Session, actor: Actor, ticket_id: int, *, lock: bool = False) -> Ticket:
@@ -418,6 +483,9 @@ def set_confidential(
     Raises:
         PermissionDeniedError: Пользователь не оператор.
         TicketNotFoundError: Обращение не найдено.
+        Exception: Не удалось обновить поисковый индекс. В отличие от
+            регистрации, здесь сбой индексации отменяет операцию: иначе
+            скрытое обращение осталось бы видимым в рекомендациях.
     """
     require_staff(actor)
     ticket = get_ticket(session, actor, ticket_id, lock=True)
@@ -427,6 +495,7 @@ def set_confidential(
         _add_history(
             session, ticket, actor, ChangeKind.CONFIDENTIALITY, old, str(value).lower(), comment
         )
+        _index(session, ticket)
         session.flush()
     return ticket
 
