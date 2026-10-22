@@ -1,5 +1,7 @@
 """Основной режим: гибридное ранжирование."""
 
+from sqlalchemy.orm import Session
+
 from spdo.search.base import Candidate, SimilaritySearcher, TicketQuery
 
 
@@ -40,10 +42,11 @@ class HybridSearcher(SimilaritySearcher):
         """Идентификатор используемой модели."""
         return self.model_name
 
-    def search(self, query: TicketQuery, limit: int) -> list[Candidate]:
+    def search(self, session: Session, query: TicketQuery, limit: int) -> list[Candidate]:
         """Возвращает кандидатов по гибридному сходству.
 
         Args:
+            session: Сессия БД.
             query: Данные нового обращения.
             limit: Максимальное число кандидатов.
 

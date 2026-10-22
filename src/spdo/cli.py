@@ -4,11 +4,15 @@
     create-user: Создать пользователя (в том числе первого администратора).
     close-expired: Закрыть решённые обращения, не подтверждённые в срок.
     dataset: Подготовка, проверка и загрузка эталонного набора.
+    reindex: Перестроить поисковый индекс по всем обращениям.
+    eval: Измерить качество подбора на эталонном наборе.
+    tune: Подобрать веса и пороги базового режима на настроечной части.
 """
 
 import argparse
 import csv
 import getpass
+import json
 import os
 import sys
 from datetime import UTC, datetime
@@ -16,10 +20,12 @@ from pathlib import Path
 
 from sqlalchemy import select
 
-from spdo.analytics import dataset, loader, sodd
+from spdo.analytics import dataset, evaluation, loader, sodd
 from spdo.config import settings
 from spdo.db import models  # noqa: F401  регистрирует таблицы всех модулей
 from spdo.db.session import SessionLocal
+from spdo.search.lexical import ALGORITHM_VERSION as LEXICAL_VERSION
+from spdo.search.lexical import LexicalWeights
 from spdo.tickets import service as tickets
 from spdo.tickets.access import PermissionDeniedError, TicketValidationError
 from spdo.users import service
@@ -249,6 +255,117 @@ def cmd_dataset_load(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_reindex(args: argparse.Namespace) -> int:
+    """Перестраивает поисковый индекс по всем обращениям реестра.
+
+    Args:
+        args: Разобранные аргументы: ``admin``.
+
+    Returns:
+        Код завершения: 0 — успех, 1 — администратор не найден или без прав.
+    """
+    with SessionLocal() as session:
+        admin = _find_admin(session, args.admin)
+        if admin is None:
+            return 1
+        try:
+            count = tickets.reindex_all(session, admin)
+        except PermissionDeniedError as exc:
+            print(f"Ошибка: {exc}", file=sys.stderr)
+            return 1
+        session.commit()
+    print(f"Проиндексировано обращений: {count}")
+    return 0
+
+
+def _lexical_weights() -> LexicalWeights:
+    """Веса базового режима из конфигурации."""
+    return LexicalWeights(
+        settings.lexical_w_lexical, settings.lexical_w_category, settings.lexical_w_component
+    )
+
+
+def cmd_eval(args: argparse.Namespace) -> int:
+    """Измеряет качество подбора базового режима на части эталонного набора.
+
+    Args:
+        args: Разобранные аргументы: ``dir``, ``split``, ``json``.
+
+    Returns:
+        Код завершения: 0 — успех, 1 — набор неверен.
+    """
+    try:
+        data = dataset.read(Path(args.dir))
+    except dataset.DatasetError as exc:
+        print(f"Ошибка: {exc}", file=sys.stderr)
+        return 1
+    corpus = evaluation.build_corpus(data)
+    rank = evaluation.lexical_ranker(corpus, _lexical_weights(), settings.candidate_pool)
+    thresholds = (settings.lexical_threshold_duplicate, settings.lexical_threshold_related)
+    quality = evaluation.evaluate(corpus, args.split, rank, thresholds)
+    report = {
+        "dataset": str(args.dir),
+        "split": args.split,
+        "mode": "lexical",
+        "model_version": LEXICAL_VERSION,
+        "params": {
+            "weights": [
+                settings.lexical_w_lexical,
+                settings.lexical_w_category,
+                settings.lexical_w_component,
+            ],
+            "threshold_duplicate": thresholds[0],
+            "threshold_related": thresholds[1],
+        },
+        **quality.as_dict(),
+    }
+    text = json.dumps(report, ensure_ascii=False, indent=2)
+    if args.json:
+        Path(args.json).write_text(text + "\n", encoding="utf-8")
+    print(text)
+    return 0
+
+
+def cmd_tune(args: argparse.Namespace) -> int:
+    """Подбирает веса и пороги базового режима на настроечной части набора.
+
+    Args:
+        args: Разобранные аргументы: ``dir``.
+
+    Returns:
+        Код завершения: 0 — успех, 1 — набор неверен.
+    """
+    try:
+        data = dataset.read(Path(args.dir))
+    except dataset.DatasetError as exc:
+        print(f"Ошибка: {exc}", file=sys.stderr)
+        return 1
+    t = evaluation.tune_lexical(data, settings.candidate_pool)
+    print(f"F1 «дубликат» = {t.f1_duplicate:.3f}, F1 «показать» = {t.f1_shown:.3f}")
+    print("Параметры для .env:")
+    print(f"SPDO_LEXICAL_W_LEXICAL={t.weights.lexical}")
+    print(f"SPDO_LEXICAL_W_CATEGORY={t.weights.category}")
+    print(f"SPDO_LEXICAL_W_COMPONENT={t.weights.component}")
+    print(f"SPDO_LEXICAL_THRESHOLD_DUPLICATE={t.threshold_duplicate}")
+    print(f"SPDO_LEXICAL_THRESHOLD_RELATED={t.threshold_related}")
+    return 0
+
+
+def _add_search_commands(commands: argparse._SubParsersAction) -> None:
+    """Добавляет подкоманды ``reindex``, ``eval``, ``tune``."""
+    rx = commands.add_parser("reindex", help="перестроить поисковый индекс")
+    rx.add_argument("--admin", required=True, help="администратор")
+    rx.set_defaults(handler=cmd_reindex)
+    ev = commands.add_parser("eval", help="измерить качество подбора на эталонном наборе")
+    ev.add_argument("dir", help="каталог набора")
+    ev.add_argument("--split", choices=["holdout", "tune"], default="holdout")
+    ev.add_argument("--json", help="файл для сохранения результата")
+    ev.set_defaults(handler=cmd_eval)
+    tn = commands.add_parser("tune", help="подобрать веса и пороги базового режима")
+    tn.add_argument("dir", help="каталог набора")
+    tn.set_defaults(handler=cmd_tune)
+
+
 def _add_dataset_commands(commands: argparse._SubParsersAction) -> None:
     """Добавляет подкоманды ``spdo dataset …``."""
     ds = commands.add_parser("dataset", help="эталонный набор обращений")
@@ -302,6 +419,7 @@ def build_parser() -> argparse.ArgumentParser:
     expire.add_argument("--dry-run", action="store_true", help="только показать, что закроется")
     expire.set_defaults(handler=cmd_close_expired)
     _add_dataset_commands(commands)
+    _add_search_commands(commands)
     return parser
 
 
