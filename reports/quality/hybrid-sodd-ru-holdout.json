@@ -1,0 +1,22 @@
+{
+  "dataset": "data/external/sodd-ru",
+  "split": "holdout",
+  "mode": "hybrid",
+  "model_version": "cointegrated/rubert-tiny2+tfidf-charwb-3-5-v1",
+  "params": {
+    "weights": [
+      0.55,
+      0.4,
+      0.025,
+      0.025
+    ],
+    "threshold_duplicate": 0.53,
+    "threshold_related": 0.52
+  },
+  "queries": 200,
+  "recall_at_3": 0.585,
+  "recall_at_3_shown": 0.53,
+  "hit_at_3": 0.585,
+  "mrr": 0.5550810353148646,
+  "false_duplicate_rate": 0.555
+}

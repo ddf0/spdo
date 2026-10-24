@@ -6,7 +6,8 @@
     dataset: Подготовка, проверка и загрузка эталонного набора.
     reindex: Перестроить поисковый индекс по всем обращениям.
     eval: Измерить качество подбора на эталонном наборе.
-    tune: Подобрать веса и пороги базового режима на настроечной части.
+    tune: Подобрать веса и пороги режима на настроечной части.
+    download-model: Скачать модель векторов в локальный кеш (при установке).
 """
 
 import argparse
@@ -21,9 +22,13 @@ from pathlib import Path
 from sqlalchemy import select
 
 from spdo.analytics import dataset, evaluation, loader, sodd
-from spdo.config import settings
+from spdo.config import SearchMode, settings
 from spdo.db import models  # noqa: F401  регистрирует таблицы всех модулей
 from spdo.db.session import SessionLocal
+from spdo.search.base import SearchUnavailableError
+from spdo.search.embeddings import Encoder
+from spdo.search.factory import build_searcher
+from spdo.search.hybrid import HybridWeights
 from spdo.search.lexical import ALGORITHM_VERSION as LEXICAL_VERSION
 from spdo.search.lexical import LexicalWeights
 from spdo.tickets import service as tickets
@@ -285,11 +290,53 @@ def _lexical_weights() -> LexicalWeights:
     )
 
 
+def _ranker(corpus: evaluation.Corpus, mode: SearchMode) -> tuple[evaluation.Ranker, dict]:
+    """Ранжирование и параметры режима из конфигурации для офлайн-оценки."""
+    if mode is SearchMode.LEXICAL:
+        rank = evaluation.lexical_ranker(corpus, _lexical_weights(), settings.candidate_pool)
+        params = {
+            "weights": [
+                settings.lexical_w_lexical,
+                settings.lexical_w_category,
+                settings.lexical_w_component,
+            ],
+            "threshold_duplicate": settings.lexical_threshold_duplicate,
+            "threshold_related": settings.lexical_threshold_related,
+            "model_version": LEXICAL_VERSION,
+        }
+        return rank, params
+    weights = HybridWeights(
+        settings.w_semantic, settings.w_lexical, settings.w_category, settings.w_component
+    )
+    encoder = evaluation.CachedEncoder(_encoder())
+    candidates = evaluation.HybridCandidates(corpus, encoder, settings.candidate_pool)
+    rank = evaluation.hybrid_ranker(candidates, weights)
+    params = {
+        "weights": [weights.semantic, weights.lexical, weights.category, weights.component],
+        "threshold_duplicate": settings.threshold_duplicate,
+        "threshold_related": settings.threshold_related,
+        "model_version": build_searcher(settings, SearchMode.HYBRID).model_version,
+    }
+    return rank, params
+
+
+def _encoder() -> Encoder:
+    """Кодировщик модели из конфигурации."""
+    return Encoder(
+        settings.embedding_model,
+        settings.embedding_dim,
+        settings.embedding_device,
+        settings.embedding_max_tokens,
+        settings.embedding_threads,
+        settings.embedding_allow_download,
+    )
+
+
 def cmd_eval(args: argparse.Namespace) -> int:
-    """Измеряет качество подбора базового режима на части эталонного набора.
+    """Измеряет качество подбора на части эталонного набора.
 
     Args:
-        args: Разобранные аргументы: ``dir``, ``split``, ``json``.
+        args: Разобранные аргументы: ``dir``, ``split``, ``mode``, ``json``.
 
     Returns:
         Код завершения: 0 — успех, 1 — набор неверен.
@@ -299,24 +346,17 @@ def cmd_eval(args: argparse.Namespace) -> int:
     except dataset.DatasetError as exc:
         print(f"Ошибка: {exc}", file=sys.stderr)
         return 1
+    mode = SearchMode(args.mode)
     corpus = evaluation.build_corpus(data)
-    rank = evaluation.lexical_ranker(corpus, _lexical_weights(), settings.candidate_pool)
-    thresholds = (settings.lexical_threshold_duplicate, settings.lexical_threshold_related)
+    rank, params = _ranker(corpus, mode)
+    thresholds = (params["threshold_duplicate"], params["threshold_related"])
     quality = evaluation.evaluate(corpus, args.split, rank, thresholds)
     report = {
         "dataset": str(args.dir),
         "split": args.split,
-        "mode": "lexical",
-        "model_version": LEXICAL_VERSION,
-        "params": {
-            "weights": [
-                settings.lexical_w_lexical,
-                settings.lexical_w_category,
-                settings.lexical_w_component,
-            ],
-            "threshold_duplicate": thresholds[0],
-            "threshold_related": thresholds[1],
-        },
+        "mode": mode.value,
+        "model_version": params.pop("model_version"),
+        "params": params,
         **quality.as_dict(),
     }
     text = json.dumps(report, ensure_ascii=False, indent=2)
@@ -327,10 +367,10 @@ def cmd_eval(args: argparse.Namespace) -> int:
 
 
 def cmd_tune(args: argparse.Namespace) -> int:
-    """Подбирает веса и пороги базового режима на настроечной части набора.
+    """Подбирает веса и пороги режима на настроечной части набора.
 
     Args:
-        args: Разобранные аргументы: ``dir``.
+        args: Разобранные аргументы: ``dir``, ``mode``.
 
     Returns:
         Код завершения: 0 — успех, 1 — набор неверен.
@@ -340,30 +380,80 @@ def cmd_tune(args: argparse.Namespace) -> int:
     except dataset.DatasetError as exc:
         print(f"Ошибка: {exc}", file=sys.stderr)
         return 1
-    t = evaluation.tune_lexical(data, settings.candidate_pool)
+    if SearchMode(args.mode) is SearchMode.LEXICAL:
+        t = evaluation.tune_lexical(data, settings.candidate_pool)
+        lines = {
+            "SPDO_LEXICAL_W_LEXICAL": t.weights.lexical,
+            "SPDO_LEXICAL_W_CATEGORY": t.weights.category,
+            "SPDO_LEXICAL_W_COMPONENT": t.weights.component,
+            "SPDO_LEXICAL_THRESHOLD_DUPLICATE": t.threshold_duplicate,
+            "SPDO_LEXICAL_THRESHOLD_RELATED": t.threshold_related,
+        }
+    else:
+        corpus = evaluation.build_corpus(data)
+        h = evaluation.tune_hybrid(
+            corpus, evaluation.CachedEncoder(_encoder()), settings.candidate_pool
+        )
+        t = h
+        lines = {
+            "SPDO_W_SEMANTIC": h.weights.semantic,
+            "SPDO_W_LEXICAL": h.weights.lexical,
+            "SPDO_W_CATEGORY": h.weights.category,
+            "SPDO_W_COMPONENT": h.weights.component,
+            "SPDO_THRESHOLD_DUPLICATE": h.threshold_duplicate,
+            "SPDO_THRESHOLD_RELATED": h.threshold_related,
+        }
     print(f"F1 «дубликат» = {t.f1_duplicate:.3f}, F1 «показать» = {t.f1_shown:.3f}")
     print("Параметры для .env:")
-    print(f"SPDO_LEXICAL_W_LEXICAL={t.weights.lexical}")
-    print(f"SPDO_LEXICAL_W_CATEGORY={t.weights.category}")
-    print(f"SPDO_LEXICAL_W_COMPONENT={t.weights.component}")
-    print(f"SPDO_LEXICAL_THRESHOLD_DUPLICATE={t.threshold_duplicate}")
-    print(f"SPDO_LEXICAL_THRESHOLD_RELATED={t.threshold_related}")
+    for key, value in lines.items():
+        print(f"{key}={value}")
+    return 0
+
+
+def cmd_download_model(args: argparse.Namespace) -> int:
+    """Скачивает модель векторных представлений в локальный кеш.
+
+    Выполняется при установке; при работе модель берётся только из кеша.
+
+    Args:
+        args: Разобранные аргументы (не используются).
+
+    Returns:
+        Код завершения: 0 — успех, 1 — модель не скачалась.
+    """
+    encoder = Encoder(
+        settings.embedding_model,
+        settings.embedding_dim,
+        settings.embedding_device,
+        settings.embedding_max_tokens,
+        allow_download=True,
+    )
+    try:
+        encoder.load()
+    except SearchUnavailableError as exc:
+        print(f"Ошибка: {exc}", file=sys.stderr)
+        return 1
+    print(f"Модель {settings.embedding_model} в локальном кеше")
     return 0
 
 
 def _add_search_commands(commands: argparse._SubParsersAction) -> None:
-    """Добавляет подкоманды ``reindex``, ``eval``, ``tune``."""
+    """Добавляет подкоманды ``reindex``, ``eval``, ``tune``, ``download-model``."""
     rx = commands.add_parser("reindex", help="перестроить поисковый индекс")
     rx.add_argument("--admin", required=True, help="администратор")
     rx.set_defaults(handler=cmd_reindex)
     ev = commands.add_parser("eval", help="измерить качество подбора на эталонном наборе")
     ev.add_argument("dir", help="каталог набора")
     ev.add_argument("--split", choices=["holdout", "tune"], default="holdout")
+    ev.add_argument("--mode", choices=[m.value for m in SearchMode], default=settings.search_mode)
     ev.add_argument("--json", help="файл для сохранения результата")
     ev.set_defaults(handler=cmd_eval)
     tn = commands.add_parser("tune", help="подобрать веса и пороги базового режима")
     tn.add_argument("dir", help="каталог набора")
+    tn.add_argument("--mode", choices=[m.value for m in SearchMode], default=settings.search_mode)
     tn.set_defaults(handler=cmd_tune)
+    dm = commands.add_parser("download-model", help="скачать модель векторов в локальный кеш")
+    dm.set_defaults(handler=cmd_download_model)
 
 
 def _add_dataset_commands(commands: argparse._SubParsersAction) -> None:

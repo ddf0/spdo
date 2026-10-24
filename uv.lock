@@ -2296,7 +2296,7 @@ requires-dist = [
     { name = "python-multipart", specifier = ">=0.0.9" },
     { name = "rank-bm25", specifier = ">=0.2.2" },
     { name = "scikit-learn", specifier = ">=1.5" },
-    { name = "sentence-transformers", specifier = ">=3.0" },
+    { name = "sentence-transformers", specifier = ">=5.0" },
     { name = "sqlalchemy", specifier = ">=2.0" },
     { name = "uvicorn", extras = ["standard"], specifier = ">=0.30" },
 ]

@@ -1,0 +1,22 @@
+{
+  "dataset": "data/synthetic",
+  "split": "holdout",
+  "mode": "hybrid",
+  "model_version": "cointegrated/rubert-tiny2+tfidf-charwb-3-5-v1",
+  "params": {
+    "weights": [
+      0.55,
+      0.4,
+      0.025,
+      0.025
+    ],
+    "threshold_duplicate": 0.53,
+    "threshold_related": 0.52
+  },
+  "queries": 32,
+  "recall_at_3": 0.8750000000000001,
+  "recall_at_3_shown": 0.84375,
+  "hit_at_3": 1.0,
+  "mrr": 0.984375,
+  "false_duplicate_rate": 0.19230769230769232
+}

@@ -1,6 +1,6 @@
 services:
   db:
-    image: pgvector/pgvector:pg16
+    image: pgvector/pgvector:0.8.2-pg16  # итеративное сканирование HNSW — с 0.8
     environment:
       POSTGRES_DB: spdo
       POSTGRES_USER: spdo

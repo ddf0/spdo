@@ -33,6 +33,11 @@ class Settings(BaseSettings):
         session_https_only: Передавать cookie сессии только по HTTPS.
         password_rounds: Стоимость bcrypt (логарифм числа раундов).
         embedding_model: Идентификатор модели sentence-transformers.
+        embedding_device: Устройство вычисления векторов (``cpu``, ``cuda``).
+        embedding_max_tokens: Наибольшая длина текста для модели в токенах.
+        embedding_threads: Число потоков torch на CPU; 0 — по умолчанию.
+        embedding_allow_download: Разрешить скачивание модели при работе
+            (по умолчанию модель берётся только из локального кеша).
         embedding_dim: Размерность векторного представления модели; при
             смене модели требуется миграция столбца и переиндексация.
         search_mode: Базовый (лексический) или гибридный режим.
@@ -42,7 +47,11 @@ class Settings(BaseSettings):
         w_semantic: Вес семантического сходства w1.
         w_lexical: Вес лексического сходства w2.
         w_category: Вес совпадения категории w3.
-        w_component: Вес совпадения компонента w4.
+        w_component: Вес совпадения компонента w4. Начальные значения ТЗ
+            (w = 0,55 / 0,15 / 0,15 / 0,15; P1 = 0,80; P2 = 0,60) заменены
+            подобранными командой ``spdo tune --mode hybrid`` на настроечной
+            части эталонного набора: при начальных значениях recall@3 ниже
+            базового режима, а пороги не соответствуют шкале косинуса модели.
         lexical_w_lexical: Вес лексического сходства в базовом режиме (w1 = 0).
         lexical_w_category: Вес совпадения категории в базовом режиме.
         lexical_w_component: Вес совпадения компонента в базовом режиме.
@@ -69,15 +78,19 @@ class Settings(BaseSettings):
     session_https_only: bool = False
     password_rounds: int = 12
     embedding_model: str = "cointegrated/rubert-tiny2"
-    embedding_dim: int = 312
-    search_mode: SearchMode = SearchMode.LEXICAL
-    threshold_duplicate: float = 0.80
-    threshold_related: float = 0.60
+    embedding_dim: int = Field(default=312, ge=1, le=2000)
+    embedding_device: str = "cpu"
+    embedding_max_tokens: int = Field(default=512, ge=32, le=2048)
+    embedding_threads: int = Field(default=0, ge=0)
+    embedding_allow_download: bool = False
+    search_mode: SearchMode = SearchMode.HYBRID
+    threshold_duplicate: float = 0.53
+    threshold_related: float = 0.52
     top_n: int = 10
     w_semantic: float = 0.55
-    w_lexical: float = 0.15
-    w_category: float = 0.15
-    w_component: float = 0.15
+    w_lexical: float = 0.40
+    w_category: float = 0.025
+    w_component: float = 0.025
     lexical_w_lexical: float = 1.0
     lexical_w_category: float = 0.0
     lexical_w_component: float = 0.0

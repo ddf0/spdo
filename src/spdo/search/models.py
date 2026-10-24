@@ -8,7 +8,7 @@
 from datetime import datetime
 
 from pgvector.sqlalchemy import Vector
-from sqlalchemy import DateTime, ForeignKey, String, Text, false, func
+from sqlalchemy import DateTime, ForeignKey, Index, String, Text, false, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from spdo.config import settings
@@ -32,6 +32,17 @@ class SearchIndexEntry(Base):
     """
 
     __tablename__ = "search_index"
+    __table_args__ = (
+        # синхронизация лексического индекса читает записи по дате изменения
+        Index("ix_search_index_updated_at", "updated_at"),
+        # приближённый поиск ближайших векторов по косинусному расстоянию
+        Index(
+            "ix_search_index_embedding_hnsw",
+            "embedding",
+            postgresql_using="hnsw",
+            postgresql_ops={"embedding": "vector_cosine_ops"},
+        ),
+    )
 
     ticket_id: Mapped[int] = mapped_column(
         ForeignKey("tickets.id", ondelete="CASCADE"), primary_key=True
