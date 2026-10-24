@@ -7,9 +7,11 @@
 """
 
 import logging
+from dataclasses import dataclass
 from datetime import datetime, timedelta
 
 from sqlalchemy import Select, func, select
+from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import Subquery
 
@@ -35,6 +37,7 @@ from spdo.tickets.models import (
     Component,
     HistoryEntry,
     Solution,
+    SolutionRating,
     Ticket,
     TicketDraft,
     TicketStatus,
@@ -91,6 +94,23 @@ def _add_history(
     )
 
 
+def check_dictionaries(session: Session, category_id: int | None, component_id: int | None) -> None:
+    """Проверяет, что указанные значения справочников существуют.
+
+    Args:
+        session: Сессия БД.
+        category_id: Категория или ``None`` — не проверяется.
+        component_id: Компонент или ``None`` — не проверяется.
+
+    Raises:
+        TicketValidationError: Значение не найдено в справочнике.
+    """
+    if category_id is not None and session.get(Category, category_id) is None:
+        raise TicketValidationError("Категория не найдена в справочнике")
+    if component_id is not None and session.get(Component, component_id) is None:
+        raise TicketValidationError("Компонент не найден в справочнике")
+
+
 def create_ticket(
     session: Session,
     actor: Actor,
@@ -129,10 +149,7 @@ def create_ticket(
         author_id=actor.id,
         status=TicketStatus.NEW,
     )
-    if session.get(Category, category_id) is None:
-        raise TicketValidationError("Категория не найдена в справочнике")
-    if session.get(Component, component_id) is None:
-        raise TicketValidationError("Компонент не найден в справочнике")
+    check_dictionaries(session, category_id, component_id)
     session.add(ticket)
     session.flush()
     _add_history(session, ticket, actor, ChangeKind.CREATED, None, TicketStatus.NEW.value)
@@ -578,3 +595,134 @@ def close_expired(session: Session, actor: Actor, days: int, now: datetime) -> l
         _apply_status(session, ticket, actor, TicketStatus.CLOSED, Trigger.EXPIRY, comment)
         closed.append(ticket.id)
     return closed
+
+
+@dataclass(frozen=True, slots=True)
+class TicketCard:
+    """Карточка обращения для показа пользователю (Ф5).
+
+    Чужое неконфиденциальное обращение показывается в сокращённом виде:
+    заголовок, статус и опубликованное решение (ТЗ, раздел «Роли»).
+
+    Attributes:
+        ticket_id: Номер обращения.
+        title: Заголовок.
+        status: Статус.
+        category: Наименование категории.
+        component: Наименование компонента или ``None`` в сокращённом виде.
+        full: Показана ли карточка полностью (своё обращение или оператор).
+        description: Описание или ``None`` в сокращённом виде.
+        solution_id: Номер опубликованного решения или ``None``.
+        solution_text: Текст опубликованного решения или ``None``.
+        my_rating: Оценка решения текущим пользователем или ``None``.
+    """
+
+    ticket_id: int
+    title: str
+    status: TicketStatus
+    category: str
+    component: str | None
+    full: bool
+    description: str | None
+    solution_id: int | None
+    solution_text: str | None
+    my_rating: bool | None
+
+
+def _visible_ticket(session: Session, actor: Actor, ticket_id: int, shown: bool) -> Ticket:
+    """Обращение, которое пользователь может видеть хотя бы в сокращённом виде.
+
+    Чужое обращение доступно, только если оно неконфиденциальное и было
+    показано пользователю в рекомендациях (``shown``): по ТЗ чужие
+    обращения видны только в рекомендациях.
+    """
+    ticket = get_link_target(session, actor, ticket_id)
+    if not can_view(actor, ticket) and not shown:
+        raise TicketNotFoundError(f"Обращение {ticket_id} не найдено")
+    return ticket
+
+
+def solution_ticket_id(session: Session, solution_id: int) -> int | None:
+    """Возвращает номер обращения, которому принадлежит решение.
+
+    Args:
+        session: Сессия БД.
+        solution_id: Номер решения.
+
+    Returns:
+        Номер обращения или ``None``, если решения нет.
+    """
+    solution = session.get(Solution, solution_id)
+    return solution.ticket_id if solution else None
+
+
+def get_card(session: Session, actor: Actor, ticket_id: int, *, shown: bool = False) -> TicketCard:
+    """Возвращает карточку обращения с учётом прав пользователя (Ф5).
+
+    Args:
+        session: Сессия БД.
+        actor: Пользователь.
+        ticket_id: Номер обращения.
+        shown: Обращение показывалось пользователю в рекомендациях —
+            условие доступа к чужому обращению (проверяет модуль
+            ``recommendations``).
+
+    Returns:
+        Карточка: полная для своего обращения и оператора, сокращённая —
+        для чужого неконфиденциального показанного (без описания и
+        компонента; категория нужна в выдаче по Ф4).
+
+    Raises:
+        TicketNotFoundError: Обращение недоступно пользователю.
+    """
+    ticket = _visible_ticket(session, actor, ticket_id, shown)
+    full = can_view(actor, ticket)
+    solution = ticket.solution
+    rating = None
+    if solution is not None:
+        rating = session.scalar(
+            select(SolutionRating.helped).where(
+                SolutionRating.solution_id == solution.id, SolutionRating.user_id == actor.id
+            )
+        )
+    return TicketCard(
+        ticket_id=ticket.id,
+        title=ticket.title,
+        status=ticket.status,
+        category=ticket.category.name,
+        component=ticket.component.name if full else None,
+        full=full,
+        description=ticket.description if full else None,
+        solution_id=solution.id if solution else None,
+        solution_text=solution.text if solution else None,
+        my_rating=rating,
+    )
+
+
+def rate_solution(
+    session: Session, actor: Actor, solution_id: int, helped: bool, *, shown: bool = False
+) -> None:
+    """Сохраняет оценку решения «помогло / не помогло» (Ф6).
+
+    Повторная оценка того же пользователя заменяет прежнюю.
+
+    Args:
+        session: Сессия БД.
+        actor: Пользователь, которому доступна карточка обращения.
+        solution_id: Номер решения.
+        helped: ``True`` — помогло, ``False`` — не помогло.
+        shown: Обращение решения показывалось пользователю в рекомендациях.
+
+    Raises:
+        TicketNotFoundError: Решение не существует или его обращение недоступно.
+    """
+    solution = session.get(Solution, solution_id)
+    if solution is None:
+        raise TicketNotFoundError(f"Решение {solution_id} не найдено")
+    _visible_ticket(session, actor, solution.ticket_id, shown)
+    stmt = insert(SolutionRating).values(solution_id=solution_id, user_id=actor.id, helped=helped)
+    stmt = stmt.on_conflict_do_update(
+        index_elements=[SolutionRating.solution_id, SolutionRating.user_id],
+        set_={"helped": helped, "rated_at": func.clock_timestamp()},
+    )
+    session.execute(stmt)
