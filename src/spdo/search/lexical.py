@@ -240,6 +240,37 @@ class LexicalIndex:
             [np.asarray((seg @ query).todense()).ravel() for seg in self._segments]
         )
 
+    def similarity_to(self, query: str, texts: list[str]) -> np.ndarray:
+        """Возвращает лексическое сходство запроса с произвольными текстами.
+
+        Тексты преобразуются словарём индекса; так гибридный режим считает
+        лексическую составляющую по актуальному тексту из БД, даже если
+        снимок ещё не догнал последние изменения.
+
+        Args:
+            query: Текст запроса.
+            texts: Тексты кандидатов.
+
+        Returns:
+            Косинусное сходство TF-IDF в порядке текстов.
+        """
+        if self._vectorizer is None or not texts:
+            return np.zeros(len(texts))
+        q = self._vectorizer.transform([query]).T
+        return np.asarray((self._vectorizer.transform(texts) @ q).todense()).ravel()
+
+    def scores(self, text: str) -> dict[int, float]:
+        """Возвращает лексическое сходство текста с каждым актуальным документом.
+
+        Args:
+            text: Текст запроса.
+
+        Returns:
+            Номер обращения → косинусное сходство TF-IDF.
+        """
+        sims = self.similarities(text)
+        return {self._docs[row].ticket_id: float(sims[row]) for row in self._row.values()}
+
     def search(
         self, query: TicketQuery, weights: LexicalWeights, pool: int
     ) -> list[tuple[Document, dict[str, float]]]:
@@ -439,6 +470,28 @@ class LexicalSearcher(SimilaritySearcher):
         """
         self.rebuild(self._engine(session))
 
+    def snapshot(self, session: Session) -> LexicalIndex:
+        """Догоняет индекс до БД и возвращает его текущий снимок.
+
+        Используется и самим поисковиком, и гибридным режимом, который берёт
+        из снимка лексическую составляющую.
+
+        Args:
+            session: Сессия БД.
+
+        Returns:
+            Неизменяемый снимок индекса.
+
+        Raises:
+            SearchUnavailableError: Индекс ещё строится (сразу после запуска).
+        """
+        engine = self._engine(session)
+        if self._index is None:
+            self._rebuild_in_background(engine)
+            raise SearchUnavailableError("Поисковый индекс ещё строится, повторите позже")
+        self._sync(engine)
+        return self._index
+
     def search(self, session: Session, query: TicketQuery, limit: int) -> list[Candidate]:
         """Возвращает кандидатов по лексическому сходству.
 
@@ -453,12 +506,7 @@ class LexicalSearcher(SimilaritySearcher):
         Raises:
             SearchUnavailableError: Индекс ещё строится (сразу после запуска).
         """
-        engine = self._engine(session)
-        if self._index is None:
-            self._rebuild_in_background(engine)
-            raise SearchUnavailableError("Поисковый индекс ещё строится, повторите позже")
-        self._sync(engine)
-        snapshot = self._index
+        snapshot = self.snapshot(session)
         result = []
         for doc, parts in snapshot.search(query, self.weights, self.pool):
             kind = self.classify(parts["score"])

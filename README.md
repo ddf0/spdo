@@ -20,9 +20,12 @@ make up          # PostgreSQL + pgvector и приложение, http://localho
 
 ## Поиск похожих обращений
 
-Режим (`SPDO_SEARCH_MODE`): `lexical` — базовый, TF-IDF по символьным
-n-граммам; `hybrid` — с семантической составляющей. Индекс обновляется при
-регистрации обращения; для уже имеющихся обращений:
+Режим (`SPDO_SEARCH_MODE`): `hybrid` (по умолчанию) — взвешенная сумма
+семантического (модель `cointegrated/rubert-tiny2`, pgvector), лексического,
+категориального и компонентного сходства; `lexical` — базовый режим для
+сравнения, только TF-IDF по символьным n-граммам. Модель скачивается с
+Hugging Face при первом запуске (около 120 МБ) и дальше работает локально.
+Индекс обновляется при регистрации обращения; для уже имеющихся обращений:
 
 ```bash
 uv run spdo reindex --admin <администратор>
@@ -32,8 +35,8 @@ uv run spdo reindex --admin <администратор>
 весов и порогов базового режима на настроечной части:
 
 ```bash
-uv run spdo eval data/synthetic --json reports/quality/<имя>.json
-uv run spdo tune data/synthetic
+uv run spdo eval data/synthetic --mode hybrid --json reports/quality/<имя>.json
+uv run spdo tune data/synthetic --mode hybrid
 ```
 
 ## Документация

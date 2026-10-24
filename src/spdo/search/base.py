@@ -4,7 +4,7 @@ from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import StrEnum
 
-from sqlalchemy import delete, func
+from sqlalchemy import case, delete, func
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
@@ -203,6 +203,15 @@ class SimilaritySearcher(ABC):
             session: Сессия БД.
             ticket: Индексируемое обращение.
         """
+        self._write(session, ticket, self.index_values(ticket))
+
+    def _write(self, session: Session, ticket: IndexedTicket, extra: dict[str, object]) -> None:
+        """Выполняет вставку или обновление записи индекса.
+
+        Если вектор не передан, а текст изменился, прежний вектор и модель
+        сбрасываются: иначе гибридный режим использовал бы вектор чужого
+        текста.
+        """
         values = {
             # clock_timestamp(), а не now(): время записи, а не начала
             # транзакции, — синхронизация по дате изменения не пропустит
@@ -214,14 +223,15 @@ class SimilaritySearcher(ABC):
             "component_id": ticket.component_id,
             "author_id": ticket.author_id,
             "confidential": ticket.confidential,
-            **self.index_values(ticket),
+            **extra,
         }
         changed = {k: v for k, v in values.items() if k != "ticket_id"}
         stmt = insert(SearchIndexEntry).values(**values)
-        stmt = stmt.on_conflict_do_update(
-            index_elements=[SearchIndexEntry.ticket_id],
-            set_=changed,
-        )
+        if "embedding" not in extra:
+            same_text = SearchIndexEntry.text == stmt.excluded.text
+            changed["embedding"] = case((same_text, SearchIndexEntry.embedding), else_=None)
+            changed["model_version"] = case((same_text, SearchIndexEntry.model_version), else_=None)
+        stmt = stmt.on_conflict_do_update(index_elements=[SearchIndexEntry.ticket_id], set_=changed)
         session.execute(stmt)
 
     def remove(self, session: Session, ticket_id: int) -> None:

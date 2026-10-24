@@ -10,6 +10,8 @@ from functools import lru_cache
 
 from spdo.config import SearchMode, Settings, settings
 from spdo.search.base import SimilaritySearcher
+from spdo.search.embeddings import Encoder
+from spdo.search.hybrid import HybridSearcher, HybridWeights
 from spdo.search.lexical import LexicalSearcher, LexicalWeights
 
 
@@ -23,8 +25,6 @@ def build_searcher(config: Settings, mode: SearchMode | None = None) -> Similari
     Returns:
         Поисковик.
 
-    Raises:
-        NotImplementedError: Режим ещё не реализован.
     """
     mode = mode or config.search_mode
     if mode is SearchMode.LEXICAL:
@@ -37,7 +37,24 @@ def build_searcher(config: Settings, mode: SearchMode | None = None) -> Similari
             weights,
             config.candidate_pool,
         )
-    raise NotImplementedError(f"Режим поиска «{mode.value}» ещё не реализован")
+    weights = HybridWeights(
+        config.w_semantic, config.w_lexical, config.w_category, config.w_component
+    )
+    encoder = Encoder(
+        config.embedding_model,
+        config.embedding_dim,
+        config.embedding_device,
+        config.embedding_max_tokens,
+        config.embedding_threads,
+        config.embedding_allow_download,
+    )
+    return HybridSearcher(
+        config.threshold_duplicate,
+        config.threshold_related,
+        weights,
+        encoder,
+        config.candidate_pool,
+    )
 
 
 @lru_cache(maxsize=1)
