@@ -168,6 +168,19 @@ class SimilaritySearcher(ABC):
             SearchUnavailableError: Поиск временно недоступен.
         """
 
+    def params(self) -> dict[str, object]:
+        """Возвращает параметры подбора для записи в сеанс поиска.
+
+        Наследники дополняют пороги своими весами.
+
+        Returns:
+            Пороги P1 и P2.
+        """
+        return {
+            "threshold_duplicate": self.threshold_duplicate,
+            "threshold_related": self.threshold_related,
+        }
+
     def warm_up(self, session: Session) -> None:
         """Подготавливает поисковик к работе при запуске приложения.
 
