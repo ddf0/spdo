@@ -23,6 +23,7 @@ TF-IDF лежит в [0, 1] и не требует дополнительной 
 10 000 обращений), поэтому рекомендуется один процесс uvicorn.
 """
 
+import dataclasses
 import re
 import threading
 import time
@@ -379,6 +380,14 @@ class LexicalSearcher(SimilaritySearcher):
     def model_version(self) -> str:
         """Версия алгоритма лексического поиска."""
         return ALGORITHM_VERSION
+
+    def params(self) -> dict[str, object]:
+        """Пороги и веса базового режима для сеанса поиска.
+
+        Returns:
+            Пороги P1, P2 и веса составляющих.
+        """
+        return {**super().params(), "weights": dataclasses.asdict(self.weights)}
 
     @staticmethod
     def _engine(session: Session) -> Engine:

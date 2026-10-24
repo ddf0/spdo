@@ -18,6 +18,7 @@ HNSW — приближённый поиск, и фильтр видимости
 возможно только из-за приближённости HNSW.
 """
 
+import dataclasses
 import logging
 from dataclasses import dataclass
 
@@ -135,6 +136,14 @@ class HybridSearcher(SimilaritySearcher):
         вычислен вектор, — по нему отбираются векторы текущей модели.
         """
         return f"{self.encoder.model_name}+{ALGORITHM_VERSION}"
+
+    def params(self) -> dict[str, object]:
+        """Пороги и веса w1–w4 для сеанса поиска.
+
+        Returns:
+            Пороги P1, P2 и веса составляющих.
+        """
+        return {**super().params(), "weights": dataclasses.asdict(self.weights)}
 
     def index_values(self, ticket: IndexedTicket) -> dict[str, object]:
         """Добавляет к записи индекса вектор текста и модель, которой он вычислен.
