@@ -15,6 +15,7 @@ from spdo import __version__, logsafe
 from spdo.config import settings
 from spdo.db import models  # noqa: F401  регистрирует таблицы всех модулей
 from spdo.db.session import SessionLocal
+from spdo.recommendations.routes import router as recommendations_router
 from spdo.search.factory import get_searcher
 from spdo.users.deps import NotAuthenticatedError
 from spdo.users.routes import router as users_router
@@ -94,6 +95,7 @@ async def security_headers(
 
 
 app.include_router(users_router)
+app.include_router(recommendations_router)
 app.include_router(web_router)
 
 
