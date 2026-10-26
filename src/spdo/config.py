@@ -6,6 +6,7 @@
 
 import secrets
 from enum import StrEnum
+from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from pydantic import Field, PrivateAttr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
@@ -68,6 +69,8 @@ class Settings(BaseSettings):
             подтверждённое автором обращение может быть закрыто командой
             ``spdo close-expired``. В ТЗ значение не задано; 14 дней —
             допущение разработчиков.
+        display_timezone: Часовой пояс дат в интерфейсе (имя IANA); в БД
+            даты хранятся в UTC.
     """
 
     model_config = SettingsConfigDict(env_prefix="SPDO_", env_file=".env", extra="ignore")
@@ -99,6 +102,7 @@ class Settings(BaseSettings):
     candidate_pool: int = Field(default=50, ge=10, le=500)
     search_warm_up: bool = True
     resolved_close_days: int = Field(default=14, ge=1)
+    display_timezone: str = "Europe/Moscow"
 
     _secret_key_generated: bool = PrivateAttr(default=False)
 
@@ -111,7 +115,8 @@ class Settings(BaseSettings):
 
         Raises:
             ValueError: Нарушено условие 0 < P2 < P1 ≤ 1, 1 ≤ N ≤ 10
-                или веса отрицательны либо не дают в сумме 1.
+                или веса отрицательны либо не дают в сумме 1, или часовой
+                пояс неизвестен.
         """
         for p1, p2 in (
             (self.threshold_duplicate, self.threshold_related),
@@ -119,6 +124,10 @@ class Settings(BaseSettings):
         ):
             if not 0 < p2 < p1 <= 1:
                 raise ValueError("Требуется 0 < P2 < P1 <= 1")
+        try:
+            ZoneInfo(self.display_timezone)
+        except (ZoneInfoNotFoundError, ValueError) as exc:
+            raise ValueError(f"Неизвестный часовой пояс {self.display_timezone}") from exc
         if not 1 <= self.top_n <= 10:
             raise ValueError("Требуется 1 <= N <= 10")
         hybrid = (self.w_semantic, self.w_lexical, self.w_category, self.w_component)

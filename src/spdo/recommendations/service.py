@@ -75,6 +75,11 @@ class SearchOutcome:
     notice: str | None
 
 
+def _decimal(value: float) -> str:
+    """Число с двумя знаками и десятичной запятой, как в интерфейсе."""
+    return f"{value:.2f}".replace(".", ",")
+
+
 def explain(components: dict[str, float]) -> str:
     """Формирует объяснение сходства из его составляющих.
 
@@ -86,9 +91,9 @@ def explain(components: dict[str, float]) -> str:
     """
     parts = []
     if components.get("sem", 0) > 0:
-        parts.append(f"смысловое сходство {components['sem']:.2f}")
+        parts.append(f"смысловое сходство {_decimal(components['sem'])}")
     if components.get("lex", 0) > 0:
-        parts.append(f"общие слова и фрагменты {components['lex']:.2f}")
+        parts.append(f"общие слова и фрагменты {_decimal(components['lex'])}")
     if components.get("cat"):
         parts.append("та же категория")
     if components.get("comp"):
