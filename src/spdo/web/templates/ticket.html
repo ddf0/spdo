@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Обращение № {{ ticket.id }} — СПДО{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>Обращение № {{ ticket.id }}</h1>
+  <dl class="props">
+    <dt>Заголовок</dt><dd>{{ ticket.title }}</dd>
+    <dt>Дата регистрации</dt><dd>{{ ticket.created_at | local_time }}</dd>
+    <dt>Статус</dt><dd>{{ status_labels[ticket.status] }}</dd>
+    <dt>Категория</dt><dd>{{ ticket.category.name }}</dd>
+    <dt>Компонент</dt><dd>{{ ticket.component.name }}</dd>
+    <dt>Описание</dt><dd class="text">{{ ticket.description }}</dd>
+    {% if ticket.solution %}<dt>Решение</dt><dd class="text">{{ ticket.solution.text }}</dd>{% endif %}
+  </dl>
+  <p><a href="/tickets/new">Зарегистрировать ещё одно обращение</a></p>
+</section>
+{% endblock %}

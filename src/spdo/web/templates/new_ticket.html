@@ -1,0 +1,73 @@
+{% extends "base.html" %}
+{% block title %}Новое обращение — СПДО{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>Новое обращение</h1>
+  <form id="ticket-form" novalidate>
+    <label>Заголовок
+      <input name="title" maxlength="200" required autocomplete="off">
+    </label>
+    <div class="row">
+      <label>Категория
+        <select name="category_id" required>
+          <option value="">— выберите —</option>
+          {% for c in categories %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+        </select>
+      </label>
+      <label>Компонент
+        <select name="component_id" required>
+          <option value="">— выберите —</option>
+          {% for c in components %}<option value="{{ c.id }}">{{ c.name }}</option>{% endfor %}
+        </select>
+      </label>
+    </div>
+    <label>Описание
+      <textarea name="description" rows="7" maxlength="4000" required></textarea>
+    </label>
+    <p class="muted small"><span id="draft-state">Черновик сохраняется автоматически.</span>
+      <span id="counter"></span></p>
+    <p class="error" id="form-error" role="alert" hidden></p>
+    <div class="actions">
+      <button type="button" id="check">Проверить похожие</button>
+      <button type="button" id="register" class="secondary">Зарегистрировать как независимое</button>
+    </div>
+  </form>
+</section>
+
+<section class="card" id="results" aria-live="polite" hidden>
+  <h2>Похожие обращения <span class="muted" id="found"></span></h2>
+  <p class="warning" id="notice" hidden></p>
+  <p class="muted small" id="automatic">{{ automatic_notice }}
+    Нажмите на заголовок, чтобы открыть карточку и решение.</p>
+  <table class="list" id="candidates">
+    <thead><tr>
+      <th>№</th><th>Заголовок</th><th>Сходство</th><th>Статус</th><th>Категория</th>
+      <th>Вид связи</th><th>Действие</th>
+    </tr></thead>
+    <tbody></tbody>
+  </table>
+  <p class="muted" id="empty" hidden>Похожих обращений не найдено — можно регистрировать.</p>
+</section>
+
+<dialog id="card">
+  <article>
+    <header><h2 id="card-title"></h2></header>
+    <p class="muted" id="card-meta"></p>
+    <p id="card-description"></p>
+    <p class="muted" id="card-no-solution">Решение пока не опубликовано.</p>
+    <section id="card-solution" hidden>
+      <h3>Решение</h3>
+      <p id="card-solution-text"></p>
+      <p class="actions">Помогло ли решение?
+        <button type="button" data-helped="true">Помогло</button>
+        <button type="button" data-helped="false" class="secondary">Не помогло</button>
+        <span class="muted" id="card-rating"></span>
+      </p>
+    </section>
+    <form method="dialog"><button class="secondary">Закрыть</button></form>
+  </article>
+</dialog>
+
+<script type="application/json" id="page-data">{{ page | tojson }}</script>
+<script src="{{ url_for('static', path='registration.js') }}" defer></script>
+{% endblock %}
