@@ -1,0 +1,636 @@
+src/spdo/__init__.py
+    LOC: 20
+    LLOC: 2
+    SLOC: 1
+    Comments: 0
+    Single comments: 0
+    Multi: 16
+    Blank: 3
+    - Comment Stats
+        (C % L): 0%
+        (C % S): 0%
+        (C + M % L): 80%
+src/spdo/config.py
+    LOC: 161
+    LLOC: 102
+    SLOC: 70
+    Comments: 1
+    Single comments: 3
+    Multi: 66
+    Blank: 22
+    - Comment Stats
+        (C % L): 1%
+        (C % S): 1%
+        (C + M % L): 42%
+src/spdo/logsafe.py
+    LOC: 84
+    LLOC: 31
+    SLOC: 32
+    Comments: 5
+    Single comments: 5
+    Multi: 29
+    Blank: 18
+    - Comment Stats
+        (C % L): 6%
+        (C % S): 16%
+        (C + M % L): 40%
+src/spdo/cli.py
+    LOC: 530
+    LLOC: 292
+    SLOC: 339
+    Comments: 2
+    Single comments: 7
+    Multi: 103
+    Blank: 81
+    - Comment Stats
+        (C % L): 0%
+        (C % S): 1%
+        (C + M % L): 20%
+src/spdo/main.py
+    LOC: 131
+    LLOC: 67
+    SLOC: 73
+    Comments: 3
+    Single comments: 3
+    Multi: 27
+    Blank: 28
+    - Comment Stats
+        (C % L): 2%
+        (C % S): 4%
+        (C + M % L): 23%
+src/spdo/analytics/__init__.py
+    LOC: 9
+    LLOC: 1
+    SLOC: 0
+    Comments: 0
+    Single comments: 0
+    Multi: 8
+    Blank: 1
+    - Comment Stats
+        (C % L): 0%
+        (C % S): 0%
+        (C + M % L): 89%
+src/spdo/analytics/models.py
+    LOC: 47
+    LLOC: 26
+    SLOC: 20
+    Comments: 0
+    Single comments: 2
+    Multi: 13
+    Blank: 12
+    - Comment Stats
+        (C % L): 0%
+        (C % S): 0%
+        (C + M % L): 28%
+src/spdo/analytics/journal.py
+    LOC: 43
+    LLOC: 8
+    SLOC: 20
+    Comments: 0
+    Single comments: 0
+    Multi: 16
+    Blank: 7
+    - Comment Stats
+        (C % L): 0%
+        (C % S): 0%
+        (C + M % L): 37%
+src/spdo/analytics/dataset.py
+    LOC: 297
+    LLOC: 143
+    SLOC: 140
+    Comments: 7
+    Single comments: 12
+    Multi: 89
+    Blank: 56
+    - Comment Stats
+        (C % L): 2%
+        (C % S): 5%
+        (C + M % L): 32%
+src/spdo/analytics/sodd.py
+    LOC: 352
+    LLOC: 95
+    SLOC: 240
+    Comments: 7
+    Single comments: 10
+    Multi: 62
+    Blank: 40
+    - Comment Stats
+        (C % L): 2%
+        (C % S): 3%
+        (C + M % L): 20%
+src/spdo/analytics/loader.py
+    LOC: 151
+    LLOC: 68
+    SLOC: 66
+    Comments: 2
+    Single comments: 5
+    Multi: 49
+    Blank: 31
+    - Comment Stats
+        (C % L): 1%
+        (C % S): 3%
+        (C + M % L): 34%
+src/spdo/analytics/evaluation.py
+    LOC: 556
+    LLOC: 266
+    SLOC: 240
+    Comments: 7
+    Single comments: 12
+    Multi: 195
+    Blank: 109
+    - Comment Stats
+        (C % L): 1%
+        (C % S): 3%
+        (C + M % L): 36%
+src/spdo/recommendations/__init__.py
+    LOC: 9
+    LLOC: 1
+    SLOC: 0
+    Comments: 0
+    Single comments: 0
+    Multi: 8
+    Blank: 1
+    - Comment Stats
+        (C % L): 0%
+        (C % S): 0%
+        (C + M % L): 89%
+src/spdo/recommendations/models.py
+    LOC: 134
+    LLOC: 76
+    SLOC: 76
+    Comments: 0
+    Single comments: 2
+    Multi: 37
+    Blank: 19
+    - Comment Stats
+        (C % L): 0%
+        (C % S): 0%
+        (C + M % L): 28%
+src/spdo/recommendations/service.py
+    LOC: 465
+    LLOC: 184
+    SLOC: 252
+    Comments: 4
+    Single comments: 12
+    Multi: 124
+    Blank: 77
+    - Comment Stats
+        (C % L): 1%
+        (C % S): 2%
+        (C + M % L): 28%
+src/spdo/recommendations/schemas.py
+    LOC: 154
+    LLOC: 104
+    SLOC: 53
+    Comments: 0
+    Single comments: 1
+    Multi: 66
+    Blank: 34
+    - Comment Stats
+        (C % L): 0%
+        (C % S): 0%
+        (C + M % L): 43%
+src/spdo/recommendations/routes.py
+    LOC: 238
+    LLOC: 85
+    SLOC: 142
+    Comments: 4
+    Single comments: 3
+    Multi: 59
+    Blank: 34
+    - Comment Stats
+        (C % L): 2%
+        (C % S): 3%
+        (C + M % L): 26%
+src/spdo/relations/__init__.py
+    LOC: 6
+    LLOC: 1
+    SLOC: 0
+    Comments: 0
+    Single comments: 0
+    Multi: 5
+    Blank: 1
+    - Comment Stats
+        (C % L): 0%
+        (C % S): 0%
+        (C + M % L): 83%
+src/spdo/relations/models.py
+    LOC: 66
+    LLOC: 25
+    SLOC: 34
+    Comments: 0
+    Single comments: 2
+    Multi: 17
+    Blank: 13
+    - Comment Stats
+        (C % L): 0%
+        (C % S): 0%
+        (C + M % L): 26%
+src/spdo/relations/service.py
+    LOC: 316
+    LLOC: 111
+    SLOC: 148
+    Comments: 11
+    Single comments: 18
+    Multi: 92
+    Blank: 58
+    - Comment Stats
+        (C % L): 3%
+        (C % S): 7%
+        (C + M % L): 33%
+src/spdo/search/__init__.py
+    LOC: 30
+    LLOC: 3
+    SLOC: 16
+    Comments: 0
+    Single comments: 0
+    Multi: 10
+    Blank: 4
+    - Comment Stats
+        (C % L): 0%
+        (C % S): 0%
+        (C + M % L): 33%
+src/spdo/search/models.py
+    LOC: 59
+    LLOC: 30
+    SLOC: 32
+    Comments: 2
+    Single comments: 0
+    Multi: 18
+    Blank: 9
+    - Comment Stats
+        (C % L): 3%
+        (C % S): 6%
+        (C + M % L): 34%
+src/spdo/search/base.py
+    LOC: 273
+    LLOC: 126
+    SLOC: 97
+    Comments: 5
+    Single comments: 7
+    Multi: 108
+    Blank: 61
+    - Comment Stats
+        (C % L): 2%
+        (C % S): 5%
+        (C + M % L): 41%
+src/spdo/search/lexical.py
+    LOC: 528
+    LLOC: 267
+    SLOC: 252
+    Comments: 12
+    Single comments: 20
+    Multi: 166
+    Blank: 90
+    - Comment Stats
+        (C % L): 2%
+        (C % S): 5%
+        (C + M % L): 34%
+src/spdo/search/factory.py
+    LOC: 67
+    LLOC: 20
+    SLOC: 39
+    Comments: 0
+    Single comments: 0
+    Multi: 17
+    Blank: 11
+    - Comment Stats
+        (C % L): 0%
+        (C % S): 0%
+        (C + M % L): 25%
+src/spdo/search/embeddings.py
+    LOC: 129
+    LLOC: 58
+    SLOC: 65
+    Comments: 4
+    Single comments: 2
+    Multi: 43
+    Blank: 19
+    - Comment Stats
+        (C % L): 3%
+        (C % S): 6%
+        (C + M % L): 36%
+src/spdo/search/hybrid.py
+    LOC: 292
+    LLOC: 114
+    SLOC: 137
+    Comments: 2
+    Single comments: 3
+    Multi: 104
+    Blank: 48
+    - Comment Stats
+        (C % L): 1%
+        (C % S): 1%
+        (C + M % L): 36%
+src/spdo/tickets/models.py
+    LOC: 243
+    LLOC: 130
+    SLOC: 116
+    Comments: 2
+    Single comments: 5
+    Multi: 71
+    Blank: 51
+    - Comment Stats
+        (C % L): 1%
+        (C % S): 2%
+        (C + M % L): 30%
+src/spdo/tickets/access.py
+    LOC: 116
+    LLOC: 39
+    SLOC: 26
+    Comments: 0
+    Single comments: 6
+    Multi: 46
+    Blank: 38
+    - Comment Stats
+        (C % L): 0%
+        (C % S): 0%
+        (C + M % L): 40%
+src/spdo/tickets/transitions.py
+    LOC: 107
+    LLOC: 38
+    SLOC: 45
+    Comments: 6
+    Single comments: 9
+    Multi: 27
+    Blank: 26
+    - Comment Stats
+        (C % L): 6%
+        (C % S): 13%
+        (C + M % L): 31%
+src/spdo/tickets/drafts.py
+    LOC: 120
+    LLOC: 39
+    SLOC: 46
+    Comments: 0
+    Single comments: 0
+    Multi: 50
+    Blank: 24
+    - Comment Stats
+        (C % L): 0%
+        (C % S): 0%
+        (C + M % L): 42%
+src/spdo/tickets/dictionaries.py
+    LOC: 210
+    LLOC: 80
+    SLOC: 72
+    Comments: 3
+    Single comments: 2
+    Multi: 87
+    Blank: 49
+    - Comment Stats
+        (C % L): 1%
+        (C % S): 4%
+        (C + M % L): 43%
+src/spdo/tickets/service.py
+    LOC: 728
+    LLOC: 228
+    SLOC: 327
+    Comments: 9
+    Single comments: 11
+    Multi: 267
+    Blank: 123
+    - Comment Stats
+        (C % L): 1%
+        (C % S): 3%
+        (C + M % L): 38%
+src/spdo/tickets/__init__.py
+    LOC: 11
+    LLOC: 1
+    SLOC: 0
+    Comments: 0
+    Single comments: 0
+    Multi: 10
+    Blank: 1
+    - Comment Stats
+        (C % L): 0%
+        (C % S): 0%
+        (C + M % L): 91%
+src/spdo/tickets/routes.py
+    LOC: 133
+    LLOC: 60
+    SLOC: 53
+    Comments: 0
+    Single comments: 3
+    Multi: 46
+    Blank: 31
+    - Comment Stats
+        (C % L): 0%
+        (C % S): 0%
+        (C + M % L): 35%
+src/spdo/users/models.py
+    LOC: 40
+    LLOC: 25
+    SLOC: 18
+    Comments: 0
+    Single comments: 2
+    Multi: 9
+    Blank: 11
+    - Comment Stats
+        (C % L): 0%
+        (C % S): 0%
+        (C + M % L): 22%
+src/spdo/users/__init__.py
+    LOC: 10
+    LLOC: 1
+    SLOC: 0
+    Comments: 0
+    Single comments: 0
+    Multi: 9
+    Blank: 1
+    - Comment Stats
+        (C % L): 0%
+        (C % S): 0%
+        (C + M % L): 90%
+src/spdo/users/deps.py
+    LOC: 180
+    LLOC: 71
+    SLOC: 61
+    Comments: 9
+    Single comments: 9
+    Multi: 63
+    Blank: 47
+    - Comment Stats
+        (C % L): 5%
+        (C % S): 15%
+        (C + M % L): 40%
+src/spdo/users/routes.py
+    LOC: 236
+    LLOC: 84
+    SLOC: 103
+    Comments: 2
+    Single comments: 4
+    Multi: 78
+    Blank: 51
+    - Comment Stats
+        (C % L): 1%
+        (C % S): 2%
+        (C + M % L): 34%
+src/spdo/users/schemas.py
+    LOC: 65
+    LLOC: 38
+    SLOC: 20
+    Comments: 0
+    Single comments: 1
+    Multi: 25
+    Blank: 19
+    - Comment Stats
+        (C % L): 0%
+        (C % S): 0%
+        (C + M % L): 38%
+src/spdo/users/security.py
+    LOC: 79
+    LLOC: 27
+    SLOC: 24
+    Comments: 3
+    Single comments: 4
+    Multi: 29
+    Blank: 22
+    - Comment Stats
+        (C % L): 4%
+        (C % S): 12%
+        (C + M % L): 41%
+src/spdo/users/service.py
+    LOC: 214
+    LLOC: 76
+    SLOC: 82
+    Comments: 2
+    Single comments: 7
+    Multi: 76
+    Blank: 49
+    - Comment Stats
+        (C % L): 1%
+        (C % S): 2%
+        (C + M % L): 36%
+src/spdo/web/__init__.py
+    LOC: 6
+    LLOC: 1
+    SLOC: 0
+    Comments: 0
+    Single comments: 0
+    Multi: 5
+    Blank: 1
+    - Comment Stats
+        (C % L): 0%
+        (C % S): 0%
+        (C + M % L): 83%
+src/spdo/web/routes.py
+    LOC: 108
+    LLOC: 41
+    SLOC: 62
+    Comments: 0
+    Single comments: 2
+    Multi: 26
+    Blank: 18
+    - Comment Stats
+        (C % L): 0%
+        (C % S): 0%
+        (C + M % L): 24%
+src/spdo/web/templating.py
+    LOC: 58
+    LLOC: 27
+    SLOC: 28
+    Comments: 8
+    Single comments: 9
+    Multi: 6
+    Blank: 15
+    - Comment Stats
+        (C % L): 14%
+        (C % S): 29%
+        (C + M % L): 24%
+src/spdo/db/__init__.py
+    LOC: 7
+    LLOC: 1
+    SLOC: 0
+    Comments: 0
+    Single comments: 0
+    Multi: 6
+    Blank: 1
+    - Comment Stats
+        (C % L): 0%
+        (C % S): 0%
+        (C + M % L): 86%
+src/spdo/db/models.py
+    LOC: 37
+    LLOC: 8
+    SLOC: 29
+    Comments: 0
+    Single comments: 0
+    Multi: 5
+    Blank: 3
+    - Comment Stats
+        (C % L): 0%
+        (C % S): 0%
+        (C + M % L): 14%
+src/spdo/db/base.py
+    LOC: 55
+    LLOC: 18
+    SLOC: 22
+    Comments: 2
+    Single comments: 3
+    Multi: 15
+    Blank: 15
+    - Comment Stats
+        (C % L): 4%
+        (C % S): 9%
+        (C + M % L): 31%
+src/spdo/db/session.py
+    LOC: 29
+    LLOC: 11
+    SLOC: 9
+    Comments: 3
+    Single comments: 4
+    Multi: 7
+    Blank: 9
+    - Comment Stats
+        (C % L): 10%
+        (C % S): 33%
+        (C + M % L): 34%
+src/spdo/db/migrations/env.py
+    LOC: 80
+    LLOC: 39
+    SLOC: 50
+    Comments: 1
+    Single comments: 3
+    Multi: 10
+    Blank: 17
+    - Comment Stats
+        (C % L): 1%
+        (C % S): 2%
+        (C + M % L): 14%
+src/spdo/db/migrations/versions/0001_initial_schema.py
+    LOC: 500
+    LLOC: 84
+    SLOC: 482
+    Comments: 0
+    Single comments: 1
+    Multi: 8
+    Blank: 9
+    - Comment Stats
+        (C % L): 0%
+        (C % S): 0%
+        (C + M % L): 2%
+src/spdo/db/migrations/versions/0002_search_index_indexes.py
+    LOC: 45
+    LLOC: 21
+    SLOC: 24
+    Comments: 0
+    Single comments: 1
+    Multi: 11
+    Blank: 9
+    - Comment Stats
+        (C % L): 0%
+        (C % S): 0%
+        (C + M % L): 24%
+** Total **
+    LOC: 8564
+    LLOC: 3494
+    SLOC: 4283
+    Comments: 128
+    Single comments: 215
+    Multi: 2539
+    Blank: 1527
+    - Comment Stats
+        (C % L): 1%
+        (C % S): 3%
+        (C + M % L): 31%
