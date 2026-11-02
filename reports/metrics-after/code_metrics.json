@@ -1,0 +1,455 @@
+{
+  "coupling": {
+    "spdo": {
+      "Ce": 0,
+      "Ca": 1,
+      "I": 0.0
+    },
+    "spdo.analytics": {
+      "Ce": 0,
+      "Ca": 1,
+      "I": 0.0
+    },
+    "spdo.analytics.candidates": {
+      "Ce": 4,
+      "Ca": 2,
+      "I": 0.67
+    },
+    "spdo.analytics.dataset": {
+      "Ce": 2,
+      "Ca": 5,
+      "I": 0.29
+    },
+    "spdo.analytics.evaluation": {
+      "Ce": 3,
+      "Ca": 1,
+      "I": 0.75
+    },
+    "spdo.analytics.journal": {
+      "Ce": 1,
+      "Ca": 3,
+      "I": 0.25
+    },
+    "spdo.analytics.loader": {
+      "Ce": 6,
+      "Ca": 1,
+      "I": 0.86
+    },
+    "spdo.analytics.models": {
+      "Ce": 1,
+      "Ca": 5,
+      "I": 0.17
+    },
+    "spdo.analytics.quality": {
+      "Ce": 3,
+      "Ca": 3,
+      "I": 0.5
+    },
+    "spdo.analytics.sodd": {
+      "Ce": 2,
+      "Ca": 1,
+      "I": 0.67
+    },
+    "spdo.analytics.tuning": {
+      "Ce": 5,
+      "Ca": 1,
+      "I": 0.83
+    },
+    "spdo.cli": {
+      "Ce": 21,
+      "Ca": 0,
+      "I": 1.0
+    },
+    "spdo.config": {
+      "Ce": 0,
+      "Ca": 9,
+      "I": 0.0
+    },
+    "spdo.db": {
+      "Ce": 0,
+      "Ca": 2,
+      "I": 0.0
+    },
+    "spdo.db.base": {
+      "Ce": 0,
+      "Ca": 6,
+      "I": 0.0
+    },
+    "spdo.db.models": {
+      "Ce": 6,
+      "Ca": 2,
+      "I": 0.75
+    },
+    "spdo.db.session": {
+      "Ce": 1,
+      "Ca": 3,
+      "I": 0.25
+    },
+    "spdo.logsafe": {
+      "Ce": 0,
+      "Ca": 1,
+      "I": 0.0
+    },
+    "spdo.main": {
+      "Ce": 13,
+      "Ca": 0,
+      "I": 1.0
+    },
+    "spdo.recommendations": {
+      "Ce": 0,
+      "Ca": 1,
+      "I": 0.0
+    },
+    "spdo.recommendations.models": {
+      "Ce": 2,
+      "Ca": 3,
+      "I": 0.4
+    },
+    "spdo.recommendations.routes": {
+      "Ce": 8,
+      "Ca": 2,
+      "I": 0.8
+    },
+    "spdo.recommendations.schemas": {
+      "Ce": 2,
+      "Ca": 1,
+      "I": 0.67
+    },
+    "spdo.recommendations.service": {
+      "Ce": 13,
+      "Ca": 1,
+      "I": 0.93
+    },
+    "spdo.relations": {
+      "Ce": 0,
+      "Ca": 1,
+      "I": 0.0
+    },
+    "spdo.relations.models": {
+      "Ce": 1,
+      "Ca": 4,
+      "I": 0.2
+    },
+    "spdo.relations.service": {
+      "Ce": 8,
+      "Ca": 2,
+      "I": 0.8
+    },
+    "spdo.search": {
+      "Ce": 1,
+      "Ca": 0,
+      "I": 1.0
+    },
+    "spdo.search.base": {
+      "Ce": 1,
+      "Ca": 12,
+      "I": 0.08
+    },
+    "spdo.search.embeddings": {
+      "Ce": 1,
+      "Ca": 4,
+      "I": 0.2
+    },
+    "spdo.search.factory": {
+      "Ce": 5,
+      "Ca": 4,
+      "I": 0.56
+    },
+    "spdo.search.hybrid": {
+      "Ce": 4,
+      "Ca": 4,
+      "I": 0.5
+    },
+    "spdo.search.lexical": {
+      "Ce": 3,
+      "Ca": 3,
+      "I": 0.5
+    },
+    "spdo.search.lexical_index": {
+      "Ce": 1,
+      "Ca": 3,
+      "I": 0.25
+    },
+    "spdo.search.models": {
+      "Ce": 2,
+      "Ca": 4,
+      "I": 0.33
+    },
+    "spdo.tickets": {
+      "Ce": 0,
+      "Ca": 6,
+      "I": 0.0
+    },
+    "spdo.tickets.access": {
+      "Ce": 2,
+      "Ca": 10,
+      "I": 0.17
+    },
+    "spdo.tickets.dictionaries": {
+      "Ce": 2,
+      "Ca": 3,
+      "I": 0.4
+    },
+    "spdo.tickets.drafts": {
+      "Ce": 2,
+      "Ca": 2,
+      "I": 0.5
+    },
+    "spdo.tickets.models": {
+      "Ce": 1,
+      "Ca": 15,
+      "I": 0.06
+    },
+    "spdo.tickets.routes": {
+      "Ce": 5,
+      "Ca": 1,
+      "I": 0.83
+    },
+    "spdo.tickets.service": {
+      "Ce": 7,
+      "Ca": 5,
+      "I": 0.58
+    },
+    "spdo.tickets.transitions": {
+      "Ce": 1,
+      "Ca": 3,
+      "I": 0.25
+    },
+    "spdo.users": {
+      "Ce": 0,
+      "Ca": 2,
+      "I": 0.0
+    },
+    "spdo.users.deps": {
+      "Ce": 3,
+      "Ca": 6,
+      "I": 0.33
+    },
+    "spdo.users.models": {
+      "Ce": 1,
+      "Ca": 8,
+      "I": 0.11
+    },
+    "spdo.users.routes": {
+      "Ce": 7,
+      "Ca": 1,
+      "I": 0.88
+    },
+    "spdo.users.schemas": {
+      "Ce": 1,
+      "Ca": 1,
+      "I": 0.5
+    },
+    "spdo.users.security": {
+      "Ce": 1,
+      "Ca": 3,
+      "I": 0.25
+    },
+    "spdo.users.service": {
+      "Ce": 2,
+      "Ca": 3,
+      "I": 0.4
+    },
+    "spdo.web": {
+      "Ce": 0,
+      "Ca": 0,
+      "I": 0.0
+    },
+    "spdo.web.routes": {
+      "Ce": 10,
+      "Ca": 1,
+      "I": 0.91
+    },
+    "spdo.web.templating": {
+      "Ce": 4,
+      "Ca": 3,
+      "I": 0.57
+    }
+  },
+  "inheritance_depth": {
+    "spdo.analytics.candidates.CachedEncoder": 1,
+    "spdo.analytics.candidates.HybridCandidates": 1,
+    "spdo.analytics.dataset.DatasetError": 4,
+    "spdo.analytics.dataset.Dataset": 1,
+    "spdo.analytics.loader.AlreadyLoadedError": 4,
+    "spdo.analytics.models.ActionKind": 4,
+    "spdo.analytics.models.ActionLogEntry": 5,
+    "spdo.analytics.quality.Quality": 1,
+    "spdo.analytics.quality.IdMap": 1,
+    "spdo.analytics.quality.Corpus": 1,
+    "spdo.analytics.sodd.Rule": 1,
+    "spdo.analytics.tuning.Tuning": 1,
+    "spdo.analytics.tuning.HybridTuning": 1,
+    "spdo.config.SearchMode": 4,
+    "spdo.config.Settings": 3,
+    "spdo.db.base.Base": 4,
+    "spdo.db.base.CreatedAtMixin": 1,
+    "spdo.logsafe.RedactSecretsFilter": 2,
+    "spdo.recommendations.models.Verdict": 4,
+    "spdo.recommendations.models.SearchSession": 5,
+    "spdo.recommendations.models.Recommendation": 5,
+    "spdo.recommendations.schemas.SearchRequest": 2,
+    "spdo.recommendations.schemas.RecommendationOut": 2,
+    "spdo.recommendations.schemas.SearchResponse": 2,
+    "spdo.recommendations.schemas.LinkIn": 2,
+    "spdo.recommendations.schemas.RegistrationRequest": 2,
+    "spdo.recommendations.schemas.RegistrationResponse": 2,
+    "spdo.recommendations.schemas.CardOut": 2,
+    "spdo.recommendations.schemas.RatingIn": 2,
+    "spdo.recommendations.service.RecommendationError": 4,
+    "spdo.recommendations.service.RecommendationNotFoundError": 5,
+    "spdo.recommendations.service.VerdictError": 5,
+    "spdo.recommendations.service.SessionUsedError": 5,
+    "spdo.recommendations.service.SearchOutcome": 1,
+    "spdo.recommendations.service.LinkChoice": 1,
+    "spdo.relations.models.RelationKind": 4,
+    "spdo.relations.models.Link": 5,
+    "spdo.relations.service.RelationError": 4,
+    "spdo.relations.service.SelfLinkError": 5,
+    "spdo.relations.service.LinkExistsError": 5,
+    "spdo.relations.service.CycleError": 5,
+    "spdo.relations.service.HasDuplicatesError": 5,
+    "spdo.relations.service.LinkIntegrityError": 5,
+    "spdo.search.base.LinkKind": 4,
+    "spdo.search.base.SearchUnavailableError": 4,
+    "spdo.search.base.SearchScope": 1,
+    "spdo.search.base.TicketQuery": 1,
+    "spdo.search.base.IndexedTicket": 1,
+    "spdo.search.base.Candidate": 1,
+    "spdo.search.base.SimilaritySearcher": 2,
+    "spdo.search.embeddings.Encoder": 1,
+    "spdo.search.hybrid.HybridWeights": 1,
+    "spdo.search.hybrid.HybridSearcher": 3,
+    "spdo.search.lexical.LexicalSearcher": 3,
+    "spdo.search.lexical_index.Document": 1,
+    "spdo.search.lexical_index.LexicalWeights": 1,
+    "spdo.search.lexical_index.LexicalIndex": 1,
+    "spdo.search.models.SearchIndexEntry": 5,
+    "spdo.tickets.access.Actor": 3,
+    "spdo.tickets.access.TicketError": 4,
+    "spdo.tickets.access.TicketNotFoundError": 5,
+    "spdo.tickets.access.PermissionDeniedError": 5,
+    "spdo.tickets.access.TicketValidationError": 5,
+    "spdo.tickets.models.TicketStatus": 4,
+    "spdo.tickets.models.ChangeKind": 4,
+    "spdo.tickets.models.Category": 5,
+    "spdo.tickets.models.Component": 5,
+    "spdo.tickets.models.Ticket": 5,
+    "spdo.tickets.models.TicketDraft": 5,
+    "spdo.tickets.models.Solution": 5,
+    "spdo.tickets.models.SolutionRating": 5,
+    "spdo.tickets.models.HistoryEntry": 5,
+    "spdo.tickets.routes.DraftIn": 2,
+    "spdo.tickets.routes.DraftOut": 3,
+    "spdo.tickets.service.TicketCard": 1,
+    "spdo.tickets.transitions.Trigger": 4,
+    "spdo.tickets.transitions.Rule": 1,
+    "spdo.tickets.transitions.TransitionError": 4,
+    "spdo.users.deps.NotAuthenticatedError": 3,
+    "spdo.users.models.Role": 4,
+    "spdo.users.models.User": 5,
+    "spdo.users.schemas.UserOut": 2,
+    "spdo.users.schemas.UserCreate": 2,
+    "spdo.users.schemas.UserUpdate": 2,
+    "spdo.users.schemas.PasswordChange": 2,
+    "spdo.users.security.PasswordPolicyError": 4,
+    "spdo.users.service.UserError": 4,
+    "spdo.users.service.InvalidUsernameError": 5,
+    "spdo.users.service.UsernameTakenError": 5,
+    "spdo.users.service.UserNotFoundError": 5,
+    "spdo.users.service.LastAdminError": 5
+  },
+  "own_inheritance_depth": {
+    "spdo.analytics.candidates.CachedEncoder": 1,
+    "spdo.analytics.candidates.HybridCandidates": 1,
+    "spdo.analytics.dataset.DatasetError": 1,
+    "spdo.analytics.dataset.Dataset": 1,
+    "spdo.analytics.loader.AlreadyLoadedError": 1,
+    "spdo.analytics.models.ActionKind": 1,
+    "spdo.analytics.models.ActionLogEntry": 2,
+    "spdo.analytics.quality.Quality": 1,
+    "spdo.analytics.quality.IdMap": 1,
+    "spdo.analytics.quality.Corpus": 1,
+    "spdo.analytics.sodd.Rule": 1,
+    "spdo.analytics.tuning.Tuning": 1,
+    "spdo.analytics.tuning.HybridTuning": 1,
+    "spdo.config.SearchMode": 1,
+    "spdo.config.Settings": 1,
+    "spdo.db.base.Base": 1,
+    "spdo.db.base.CreatedAtMixin": 1,
+    "spdo.logsafe.RedactSecretsFilter": 1,
+    "spdo.recommendations.models.Verdict": 1,
+    "spdo.recommendations.models.SearchSession": 2,
+    "spdo.recommendations.models.Recommendation": 2,
+    "spdo.recommendations.schemas.SearchRequest": 1,
+    "spdo.recommendations.schemas.RecommendationOut": 1,
+    "spdo.recommendations.schemas.SearchResponse": 1,
+    "spdo.recommendations.schemas.LinkIn": 1,
+    "spdo.recommendations.schemas.RegistrationRequest": 1,
+    "spdo.recommendations.schemas.RegistrationResponse": 1,
+    "spdo.recommendations.schemas.CardOut": 1,
+    "spdo.recommendations.schemas.RatingIn": 1,
+    "spdo.recommendations.service.RecommendationError": 1,
+    "spdo.recommendations.service.RecommendationNotFoundError": 2,
+    "spdo.recommendations.service.VerdictError": 2,
+    "spdo.recommendations.service.SessionUsedError": 2,
+    "spdo.recommendations.service.SearchOutcome": 1,
+    "spdo.recommendations.service.LinkChoice": 1,
+    "spdo.relations.models.RelationKind": 1,
+    "spdo.relations.models.Link": 2,
+    "spdo.relations.service.RelationError": 1,
+    "spdo.relations.service.SelfLinkError": 2,
+    "spdo.relations.service.LinkExistsError": 2,
+    "spdo.relations.service.CycleError": 2,
+    "spdo.relations.service.HasDuplicatesError": 2,
+    "spdo.relations.service.LinkIntegrityError": 2,
+    "spdo.search.base.LinkKind": 1,
+    "spdo.search.base.SearchUnavailableError": 1,
+    "spdo.search.base.SearchScope": 1,
+    "spdo.search.base.TicketQuery": 1,
+    "spdo.search.base.IndexedTicket": 1,
+    "spdo.search.base.Candidate": 1,
+    "spdo.search.base.SimilaritySearcher": 1,
+    "spdo.search.embeddings.Encoder": 1,
+    "spdo.search.hybrid.HybridWeights": 1,
+    "spdo.search.hybrid.HybridSearcher": 2,
+    "spdo.search.lexical.LexicalSearcher": 2,
+    "spdo.search.lexical_index.Document": 1,
+    "spdo.search.lexical_index.LexicalWeights": 1,
+    "spdo.search.lexical_index.LexicalIndex": 1,
+    "spdo.search.models.SearchIndexEntry": 2,
+    "spdo.tickets.access.Actor": 1,
+    "spdo.tickets.access.TicketError": 1,
+    "spdo.tickets.access.TicketNotFoundError": 2,
+    "spdo.tickets.access.PermissionDeniedError": 2,
+    "spdo.tickets.access.TicketValidationError": 2,
+    "spdo.tickets.models.TicketStatus": 1,
+    "spdo.tickets.models.ChangeKind": 1,
+    "spdo.tickets.models.Category": 2,
+    "spdo.tickets.models.Component": 2,
+    "spdo.tickets.models.Ticket": 2,
+    "spdo.tickets.models.TicketDraft": 2,
+    "spdo.tickets.models.Solution": 2,
+    "spdo.tickets.models.SolutionRating": 2,
+    "spdo.tickets.models.HistoryEntry": 2,
+    "spdo.tickets.routes.DraftIn": 1,
+    "spdo.tickets.routes.DraftOut": 2,
+    "spdo.tickets.service.TicketCard": 1,
+    "spdo.tickets.transitions.Trigger": 1,
+    "spdo.tickets.transitions.Rule": 1,
+    "spdo.tickets.transitions.TransitionError": 1,
+    "spdo.users.deps.NotAuthenticatedError": 1,
+    "spdo.users.models.Role": 1,
+    "spdo.users.models.User": 2,
+    "spdo.users.schemas.UserOut": 1,
+    "spdo.users.schemas.UserCreate": 1,
+    "spdo.users.schemas.UserUpdate": 1,
+    "spdo.users.schemas.PasswordChange": 1,
+    "spdo.users.security.PasswordPolicyError": 1,
+    "spdo.users.service.UserError": 1,
+    "spdo.users.service.InvalidUsernameError": 2,
+    "spdo.users.service.UsernameTakenError": 2,
+    "spdo.users.service.UserNotFoundError": 2,
+    "spdo.users.service.LastAdminError": 2
+  }
+}
