@@ -94,25 +94,41 @@ def _check_ticket(t: dict[str, str | None]) -> None:
         raise DatasetError(f"Обращение {t['id']}: неизвестный статус {t['status']}")
 
 
-def _check_groups(groups: list[dict[str, str]], split_of: dict[str, str]) -> None:
-    """Проверяет группы: состав, единый вид, целостность при разбиении."""
-    members: dict[str, set[str]] = {}
-    kinds: dict[str, set[str]] = {}
+def _collect_groups(
+    groups: list[dict[str, str]], split_of: dict[str, str]
+) -> dict[str, tuple[set[str], set[str]]]:
+    """Проверяет строки ``groups.csv`` и собирает состав и виды каждой группы.
+
+    Returns:
+        Номер группы → (обращения, виды).
+    """
+    collected: dict[str, tuple[set[str], set[str]]] = {}
     seen: set[tuple[str, str]] = set()
     for g in groups:
         key = (g.get("group_id") or "", g.get("ticket_id") or "")
         if g.get("kind") not in KINDS or key[1] not in split_of or key in seen:
             raise DatasetError(f"groups.csv: неверная или повторная строка {g}")
         seen.add(key)
-        members.setdefault(key[0], set()).add(key[1])
-        kinds.setdefault(key[0], set()).add(g["kind"])
-    for gid, tids in members.items():
-        if len(tids) < 2:
-            raise DatasetError(f"Группа {gid} состоит из одного обращения")
-        if len(kinds[gid]) > 1:
-            raise DatasetError(f"Группа {gid} смешивает виды {', '.join(sorted(kinds[gid]))}")
-        if len({split_of[t] for t in tids}) > 1:
-            raise DatasetError(f"Группа {gid} разорвана между tune и holdout")
+        tids, kinds = collected.setdefault(key[0], (set(), set()))
+        tids.add(key[1])
+        kinds.add(g["kind"])
+    return collected
+
+
+def _check_group(gid: str, tids: set[str], kinds: set[str], split_of: dict[str, str]) -> None:
+    """Проверяет одну группу: не меньше двух обращений, один вид, одна часть."""
+    if len(tids) < 2:
+        raise DatasetError(f"Группа {gid} состоит из одного обращения")
+    if len(kinds) > 1:
+        raise DatasetError(f"Группа {gid} смешивает виды {', '.join(sorted(kinds))}")
+    if len({split_of[t] for t in tids}) > 1:
+        raise DatasetError(f"Группа {gid} разорвана между tune и holdout")
+
+
+def _check_groups(groups: list[dict[str, str]], split_of: dict[str, str]) -> None:
+    """Проверяет группы: состав, единый вид, целостность при разбиении."""
+    for gid, (tids, kinds) in _collect_groups(groups, split_of).items():
+        _check_group(gid, tids, kinds, split_of)
 
 
 def validate(data: Dataset) -> None:

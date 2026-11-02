@@ -178,21 +178,30 @@ def update_user(
     user = session.get(User, user_id)
     if user is None:
         raise UserNotFoundError(f"Пользователь {user_id} не найден")
-    loses_admin = (
-        user.role is Role.ADMIN
-        and user.is_active
-        and ((role is not None and role is not Role.ADMIN) or is_active is False)
-    )
-    if loses_admin and _active_admin_count(session) <= 1:
+    if _loses_admin(user, role, is_active) and _active_admin_count(session) <= 1:
         raise LastAdminError("Нельзя оставить систему без активного администратора")
+    _apply_changes(user, full_name, role, is_active)
+    session.flush()
+    return user
+
+
+def _apply_changes(
+    user: User, full_name: str | None, role: Role | None, is_active: bool | None
+) -> None:
+    """Записывает в пользователя заданные (не ``None``) значения полей."""
     if full_name is not None and full_name.strip():
         user.full_name = full_name.strip()
     if role is not None:
         user.role = role
     if is_active is not None:
         user.is_active = is_active
-    session.flush()
-    return user
+
+
+def _loses_admin(user: User, role: Role | None, is_active: bool | None) -> bool:
+    """Перестаёт ли активный администратор быть им после изменения."""
+    if user.role is not Role.ADMIN or not user.is_active:
+        return False
+    return (role is not None and role is not Role.ADMIN) or is_active is False
 
 
 def set_password(session: Session, user_id: int, password: str) -> None:
