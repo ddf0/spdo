@@ -9,6 +9,7 @@ from urllib.parse import quote
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
+from sqlalchemy.exc import DataError
 from starlette.middleware.sessions import SessionMiddleware
 
 from spdo import __version__, logsafe
@@ -119,6 +120,29 @@ def not_authenticated(request: Request, _: NotAuthenticatedError) -> Response:
         return JSONResponse({"detail": "Требуется вход"}, status_code=status.HTTP_401_UNAUTHORIZED)
     target = quote(request.url.path, safe="/")
     return RedirectResponse(f"/login?next={target}", status_code=status.HTTP_303_SEE_OTHER)
+
+
+@app.exception_handler(DataError)
+def invalid_data(request: Request, exc: DataError) -> Response:
+    """Отвечает 400 на ввод, который БД не может сохранить или сравнить.
+
+    Например, символ с кодом 0 в тексте (PostgreSQL его не допускает) или
+    число вне диапазона столбца. Без обработчика такой ввод давал бы 500.
+
+    Args:
+        request: Текущий запрос.
+        exc: Ошибка данных от драйвера БД.
+
+    Returns:
+        Ответ 400.
+    """
+    logging.getLogger(__name__).warning(
+        "Недопустимые данные в запросе %s: %s", request.url.path, type(exc.orig).__name__
+    )
+    return JSONResponse(
+        {"detail": "Введённые данные содержат недопустимые символы или значения"},
+        status_code=status.HTTP_400_BAD_REQUEST,
+    )
 
 
 @app.get("/health")
