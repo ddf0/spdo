@@ -83,3 +83,10 @@ ul.plain { margin: 0; padding-left: 1.2rem; }
 .actions.end { align-self: end; }
 section.card form + form { margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--border); }
 @media (max-width: 640px) { .filters { grid-template-columns: 1fr; } }
+
+.tiles { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1.25rem; margin: 1.25rem 0; }
+.scroll { overflow-x: auto; }
+.tile { padding: 1rem 1.25rem; }
+.tile .value { font-size: 2rem; font-weight: 700; margin: .25rem 0; font-variant-numeric: tabular-nums; }
+.ok { color: #1a7f37; }
+@media (max-width: 800px) { .tiles { grid-template-columns: 1fr; } }

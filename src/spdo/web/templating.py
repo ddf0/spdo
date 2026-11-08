@@ -50,9 +50,36 @@ def local_time(value: datetime) -> str:
     return value.astimezone(DISPLAY_TZ).strftime("%d.%m.%Y %H:%M")
 
 
+def percent(value: float | None) -> str:
+    """Доля в процентах с одним знаком и десятичной запятой; ``None`` — прочерк.
+
+    Args:
+        value: Доля в [0, 1] или ``None``.
+
+    Returns:
+        Строка вида ``45,0 %`` или ``—``.
+    """
+    return "—" if value is None else f"{value * 100:.1f} %".replace(".", ",")
+
+
+def decimal(value: float, digits: int = 3) -> str:
+    """Число с десятичной запятой.
+
+    Args:
+        value: Число.
+        digits: Знаков после запятой.
+
+    Returns:
+        Строка вида ``0,875``.
+    """
+    return f"{value:.{digits}f}".replace(".", ",")
+
+
 #: Шаблонизатор приложения; в шаблонах доступны
 #: ``csrf_token(request)``, ``role_labels`` и фильтр ``local_time``.
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
 templates.env.globals["csrf_token"] = csrf_token
 templates.env.globals["role_labels"] = ROLE_LABELS
 templates.env.filters["local_time"] = local_time
+templates.env.filters["percent"] = percent
+templates.env.filters["decimal"] = decimal

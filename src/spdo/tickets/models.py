@@ -109,10 +109,14 @@ class Ticket(CreatedAtMixin, Base):
         Index("ix_tickets_category_id", "category_id"),
         Index("ix_tickets_component_id", "component_id"),
         Index("ix_tickets_author_id", "author_id"),
-        # Полнотекстовый поиск реестра (Ф11); выражение — как в tickets.registry.
+        # Полнотекстовый поиск реестра (Ф11); выражение — как в tickets.registry,
+        # в нормализованной PostgreSQL записи, чтобы автогенерация Alembic не
+        # считала индекс изменённым.
         Index(
             "ix_tickets_fts",
-            text("to_tsvector('russian'::regconfig, title || ' ' || description)"),
+            text(
+                "to_tsvector('russian'::regconfig, (title::text || ' '::text) || description::text)"
+            ),
             postgresql_using="gin",
         ),
     )
