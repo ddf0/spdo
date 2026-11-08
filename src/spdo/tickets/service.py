@@ -726,3 +726,25 @@ def rate_solution(
         set_={"helped": helped, "rated_at": func.clock_timestamp()},
     )
     session.execute(stmt)
+
+
+def rating_stats(session: Session, start: datetime, end: datetime) -> tuple[int, int]:
+    """Считает оценки решений за период (учитываются в статистике, ПЦ12).
+
+    Права не проверяются: вызывается построением отчёта, которое допускает
+    только оператора и администратора.
+
+    Args:
+        session: Сессия БД.
+        start: Начало периода (включительно).
+        end: Конец периода (не включительно).
+
+    Returns:
+        Пара (всего оценок, из них «помогло»).
+    """
+    total, helped = session.execute(
+        select(func.count(), func.count().filter(SolutionRating.helped)).where(
+            SolutionRating.rated_at >= start, SolutionRating.rated_at < end
+        )
+    ).one()
+    return total, helped

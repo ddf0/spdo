@@ -19,7 +19,7 @@
 выполняются в одной транзакции; фиксирует её вызывающий код.
 """
 
-from sqlalchemy import or_, select, text
+from sqlalchemy import Select, or_, select, text
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy.orm import Session
 
@@ -314,3 +314,17 @@ def list_links(session: Session, actor: Actor, ticket_id: int) -> list[Link]:
         .order_by(Link.id)
     )
     return list(session.scalars(stmt))
+
+
+def duplicate_recommendation_ids() -> Select[tuple[int]]:
+    """Запрос номеров рекомендаций, по которым установлена связь «дубликат».
+
+    Используется статистикой (Ф14) как подзапрос: так подтверждённые
+    дубликаты считаются в одном запросе к БД.
+
+    Returns:
+        Запрос ``SELECT recommendation_id`` по связям вида «дубликат».
+    """
+    return select(Link.recommendation_id).where(
+        Link.kind == RelationKind.DUPLICATE, Link.recommendation_id.is_not(None)
+    )
