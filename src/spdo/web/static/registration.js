@@ -302,6 +302,35 @@
     $("candidates").hidden = count === 0;
     $("empty").hidden = count !== 0 || data.unavailable;
     setStale(false);
+    showSuggestion(data.suggestion);
+  }
+
+  // --- предложение категории и компонента (Ф19) ------------------------
+
+  let suggestion = null;
+
+  function showSuggestion(s) {
+    const v = values();
+    const parts = [];
+    suggestion = {};
+    if (s && s.category_id !== null && s.category_id !== v.category_id) {
+      parts.push(`категория «${s.category}»`);
+      suggestion.category_id = s.category_id;
+    }
+    if (s && s.component_id !== null && s.component_id !== v.component_id) {
+      parts.push(`компонент «${s.component}»`);
+      suggestion.component_id = s.component_id;
+    }
+    $("suggestion-text").textContent = parts.join(", ");
+    $("suggestion").hidden = parts.length === 0;
+  }
+
+  function applySuggestion() {
+    if (!suggestion) return;
+    if ("category_id" in suggestion) form.category_id.value = suggestion.category_id;
+    if ("component_id" in suggestion) form.component_id.value = suggestion.component_id;
+    $("suggestion").hidden = true;
+    form.dispatchEvent(new Event("input"));  // черновик и новый подбор
   }
 
   function linkButton(text, rec, kind) {
@@ -480,6 +509,7 @@
     search(true);
   });
   $("register").addEventListener("click", () => register(null));
+  $("apply-suggestion").addEventListener("click", applySuggestion);
   for (const b of document.querySelectorAll("#card-solution button[data-helped]")) {
     b.addEventListener("click", () => rate(b.dataset.helped === "true"));
   }
