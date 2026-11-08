@@ -32,6 +32,7 @@ from spdo.search.base import (
     SearchUnavailableError,
     SimilaritySearcher,
     TicketQuery,
+    Tuning,
 )
 from spdo.search.lexical_index import (
     REFIT_GROWTH,
@@ -129,13 +130,17 @@ class LexicalSearcher(SimilaritySearcher):
         """Версия алгоритма лексического поиска."""
         return ALGORITHM_VERSION
 
-    def params(self) -> dict[str, object]:
+    def params(self, tuning: Tuning | None = None) -> dict[str, object]:
         """Пороги и веса базового режима для сеанса поиска.
+
+        Args:
+            tuning: Снимок параметров; ``None`` — действующие.
 
         Returns:
             Пороги P1, P2 и веса составляющих.
         """
-        return {**super().params(), "weights": dataclasses.asdict(self.weights)}
+        t = tuning or self.tuning
+        return {**super().params(t), "weights": dataclasses.asdict(t.weights)}
 
     @staticmethod
     def _engine(session: Session) -> Engine:
@@ -278,10 +283,11 @@ class LexicalSearcher(SimilaritySearcher):
         Raises:
             SearchUnavailableError: Индекс ещё строится (сразу после запуска).
         """
+        tuning = self.tuning  # один снимок параметров на весь подбор
         snapshot = self.snapshot(session)
         result = []
-        for doc, parts in snapshot.search(query, self.weights, self.pool):
-            kind = self.classify(parts["score"])
+        for doc, parts in snapshot.search(query, tuning.weights, self.pool):
+            kind = self.classify(parts["score"], tuning)
             if kind is None:
                 break
             components = {k: parts[k] for k in ("sem", "lex", "cat", "comp")}

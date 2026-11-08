@@ -17,6 +17,7 @@ from spdo.config import settings
 from spdo.db import models  # noqa: F401  регистрирует таблицы всех модулей
 from spdo.db.session import SessionLocal
 from spdo.recommendations.routes import router as recommendations_router
+from spdo.search import params
 from spdo.search.factory import get_searcher
 from spdo.tickets.routes import router as tickets_router
 from spdo.users.deps import NotAuthenticatedError
@@ -37,6 +38,19 @@ def _warm_up_search() -> None:
         logging.getLogger(__name__).exception("Не удалось подготовить поиск при запуске")
 
 
+def _load_search_params() -> None:
+    """Применяет параметры поиска, заданные администратором (Ф16), до первого запроса.
+
+    Ошибка БД (например, миграция ещё не применена) не мешает запуску:
+    действуют параметры окружения.
+    """
+    try:
+        with SessionLocal() as session:
+            params.load_and_apply(session)
+    except Exception:  # noqa: BLE001 — запуск не должен зависеть от настроек
+        logging.getLogger(__name__).exception("Не удалось загрузить параметры поиска")
+
+
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
     """Подключает фильтр секретов к журналам и прогревает поиск в фоне.
@@ -47,6 +61,7 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         Управление приложению на время работы.
     """
     logsafe.install()
+    _load_search_params()
     if settings.search_warm_up:
         threading.Thread(target=_warm_up_search, name="search-warm-up", daemon=True).start()
     if settings.secret_key_generated:

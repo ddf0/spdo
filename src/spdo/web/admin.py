@@ -6,6 +6,8 @@
 каждого запроса: пользователю без роли администратора — страница 403.
 """
 
+import logging
+import math
 from collections.abc import Callable
 from typing import Annotated
 
@@ -14,6 +16,8 @@ from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy.exc import DataError
 from sqlalchemy.orm import Session
 
+from spdo.config import SearchMode, settings
+from spdo.search import params
 from spdo.tickets import dictionaries
 from spdo.tickets.access import PermissionDeniedError, TicketNotFoundError, TicketValidationError
 from spdo.users import service as users
@@ -22,6 +26,7 @@ from spdo.users.models import FULL_NAME_MAX, Role
 from spdo.users.security import PasswordPolicyError
 from spdo.web.templating import ROLE_LABELS, templates
 
+logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/admin", dependencies=[Depends(verify_csrf)])
 
 #: Сообщения после успешного действия (параметр ``done``).
@@ -31,6 +36,8 @@ DONE_MESSAGES = {
     "password": "Пароль заменён.",
     "category": "Справочник категорий изменён.",
     "component": "Справочник компонентов изменён.",
+    "search": "Параметры поиска сохранены и применены.",
+    "search-reset": "Восстановлены параметры поиска из окружения.",
 }
 #: Ошибки действий и коды ответа.
 _ERROR_CODES: list[tuple[type[Exception], int]] = [
@@ -42,6 +49,7 @@ _ERROR_CODES: list[tuple[type[Exception], int]] = [
     (users.InvalidUsernameError, status.HTTP_400_BAD_REQUEST),
     (PasswordPolicyError, status.HTTP_400_BAD_REQUEST),
     (TicketValidationError, status.HTTP_400_BAD_REQUEST),
+    (params.SearchParamsError, status.HTTP_400_BAD_REQUEST),
     # ввод, который БД не может сохранить (например, символ с кодом 0)
     (DataError, status.HTTP_400_BAD_REQUEST),
 ]
@@ -152,8 +160,23 @@ def _act(
     page: Callable[..., Response],
     url: str,
     action: Callable[[], object],
+    after: Callable[[], object] | None = None,
 ) -> Response:
-    """Выполняет действие администратора: успех — перенаправление, ошибка — страница."""
+    """Выполняет действие администратора: успех — перенаправление, ошибка — страница.
+
+    Args:
+        request: Текущий запрос.
+        session: Сессия БД.
+        user: Текущий пользователь.
+        page: Построение страницы раздела (для показа ошибки).
+        url: Адрес перенаправления после успеха.
+        action: Действие в транзакции запроса.
+        after: Действие после фиксации транзакции (например, применение
+            параметров к процессу); его ошибка показывается на странице.
+
+    Returns:
+        Перенаправление, страница с ошибкой или 403.
+    """
     if user.role is not Role.ADMIN:
         return _forbidden(request, user)
     try:
@@ -163,6 +186,13 @@ def _act(
         code = next(c for e, c in _ERROR_CODES if isinstance(exc, e))
         return page(request, session, user, error=str(exc), code=code)
     session.commit()
+    if after is not None:
+        try:
+            after()
+        except Exception:  # noqa: BLE001 — запись сохранена, сообщаем о сбое применения
+            logger.exception("Действие после сохранения не выполнено")
+            error = "Изменение сохранено, но не применено; оно вступит в силу после перезапуска."
+            return page(request, session, user, error=error, code=500)
     return RedirectResponse(url, status.HTTP_303_SEE_OTHER)
 
 
@@ -395,4 +425,192 @@ def save_component(
 
     return _act(
         request, session, user, _dictionaries_page, "/admin/dictionaries?done=component", action
+    )
+
+
+#: Подписи настраиваемых параметров поиска (Ф16).
+PARAM_LABELS = {
+    "top_n": "Число рекомендаций N (1–10)",
+    "threshold_duplicate": "P1 — порог «возможный дубликат»",
+    "threshold_related": "P2 — порог показа («возможно связанное»)",
+    "w_semantic": "w1 — смысловое сходство",
+    "w_lexical": "w2 — лексическое сходство",
+    "w_category": "w3 — совпадение категории",
+    "w_component": "w4 — совпадение компонента",
+    "lexical_threshold_duplicate": "P1 — порог «возможный дубликат»",
+    "lexical_threshold_related": "P2 — порог показа",
+    "lexical_w_lexical": "Вес лексического сходства",
+    "lexical_w_category": "Вес совпадения категории",
+    "lexical_w_component": "Вес совпадения компонента",
+}
+
+
+def _parse_params(form: dict[str, str]) -> dict[str, object]:
+    """Значения параметров из формы: числа с точкой или запятой.
+
+    Сохраняются только значения, отличные от параметров окружения: так
+    параметр, который администратор не менял, следует за окружением.
+
+    Args:
+        form: Поля формы.
+
+    Returns:
+        Перекрытые параметры.
+
+    Raises:
+        TicketValidationError: Значение не конечное число или режим неизвестен.
+    """
+    values: dict[str, object] = {}
+    try:
+        values["search_mode"] = SearchMode(form.get("search_mode", ""))
+    except ValueError as exc:
+        raise TicketValidationError("Неизвестный режим поиска") from exc
+    for key, label in PARAM_LABELS.items():
+        raw = form.get(key, "").strip().replace(",", ".")
+        try:
+            values[key] = int(raw) if key == "top_n" else float(raw)
+        except ValueError as exc:
+            raise TicketValidationError(f"«{label}»: нужно число") from exc
+        if not math.isfinite(values[key]):
+            raise TicketValidationError(f"«{label}»: нужно конечное число")
+    return {k: v for k, v in values.items() if v != params.ENV_DEFAULTS[k]}
+
+
+def _search_page(
+    request: Request,
+    session: Session,
+    user: CurrentUser,
+    *,
+    error: str | None = None,
+    code: int = status.HTTP_200_OK,
+) -> Response:
+    """Страница параметров поиска.
+
+    Args:
+        request: Текущий запрос.
+        session: Сессия БД.
+        user: Текущий пользователь.
+        error: Текст ошибки.
+        code: Код ответа.
+
+    Returns:
+        Страница.
+    """
+    done = None if error else DONE_MESSAGES.get(request.query_params.get("done", ""))
+    history = params.history(session)
+    saved = params.current_values(session)
+    return templates.TemplateResponse(
+        request,
+        "admin_search.html",
+        {
+            "user": user,
+            "config": settings,
+            "env": params.ENV_DEFAULTS,
+            "overridden": saved,
+            "stale": saved != params.applied(),
+            "labels": PARAM_LABELS,
+            "modes": list(SearchMode),
+            "history": history,
+            "names": users.display_names(session, {r.author_id for r in history}),
+            "error": error,
+            "done": done,
+        },
+        status_code=code,
+    )
+
+
+@router.get("/search", response_class=HTMLResponse)
+def search_page(request: Request, session: DbSession, user: CurrentUser) -> Response:
+    """Показывает действующие параметры поиска и форму их изменения (Ф16).
+
+    Args:
+        request: Текущий запрос.
+        session: Сессия БД.
+        user: Текущий пользователь.
+
+    Returns:
+        Страница параметров или 403.
+    """
+    if user.role is not Role.ADMIN:
+        return _forbidden(request, user)
+    return _search_page(request, session, user)
+
+
+async def _admin_form(request: Request, user: CurrentUser) -> dict[str, str]:
+    """Поля формы; тело разбирается только для администратора.
+
+    Args:
+        request: Текущий запрос.
+        user: Текущий пользователь.
+
+    Returns:
+        Текстовые поля формы или пустой словарь.
+    """
+    if user.role is not Role.ADMIN:
+        return {}
+    return {k: v for k, v in (await request.form()).items() if isinstance(v, str)}
+
+
+@router.post("/search")
+def save_search(
+    request: Request,
+    session: DbSession,
+    user: CurrentUser,
+    form: Annotated[dict[str, str], Depends(_admin_form)],
+) -> Response:
+    """Сохраняет и сразу применяет параметры поиска.
+
+    Значения проверяются так же, как параметры окружения; при ошибке
+    ничего не сохраняется и не применяется.
+
+    Args:
+        request: Текущий запрос.
+        session: Сессия БД.
+        user: Текущий пользователь.
+        form: Поля формы.
+
+    Returns:
+        Перенаправление или страница с ошибкой.
+    """
+
+    def action() -> None:
+        """Проверка и сохранение."""
+        params.save(session, user.id, _parse_params(form), form.get("comment", ""))
+
+    return _act(
+        request,
+        session,
+        user,
+        _search_page,
+        "/admin/search?done=search",
+        action,
+        after=lambda: params.apply_latest(session),
+    )
+
+
+@router.post("/search/reset")
+def reset_search(request: Request, session: DbSession, user: CurrentUser) -> Response:
+    """Возвращает параметры поиска из окружения.
+
+    Args:
+        request: Текущий запрос.
+        session: Сессия БД.
+        user: Текущий пользователь.
+
+    Returns:
+        Перенаправление или страница с ошибкой.
+    """
+
+    def action() -> None:
+        """Пустая запись истории."""
+        params.save(session, user.id, {}, "Возврат к параметрам окружения")
+
+    return _act(
+        request,
+        session,
+        user,
+        _search_page,
+        "/admin/search?done=search-reset",
+        action,
+        after=lambda: params.apply_latest(session),
     )

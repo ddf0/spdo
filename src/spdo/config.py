@@ -4,6 +4,7 @@
 или из файла ``.env``. Константы порогов и весов в коде не допускаются.
 """
 
+import math
 import secrets
 from enum import StrEnum
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
@@ -129,8 +130,8 @@ class Settings(BaseSettings):
 
         Raises:
             ValueError: Нарушено условие 0 < P2 < P1 ≤ 1, 1 ≤ N ≤ 10
-                или веса отрицательны либо не дают в сумме 1, или часовой
-                пояс неизвестен.
+                или веса не конечны, отрицательны либо не дают в сумме 1,
+                или часовой пояс неизвестен.
         """
         for p1, p2 in (
             (self.threshold_duplicate, self.threshold_related),
@@ -147,6 +148,9 @@ class Settings(BaseSettings):
         hybrid = (self.w_semantic, self.w_lexical, self.w_category, self.w_component)
         lexical = (self.lexical_w_lexical, self.lexical_w_category, self.lexical_w_component)
         for weights in (hybrid, lexical):
+            # NaN не проходит ни одно сравнение, поэтому проверяется явно.
+            if not all(map(math.isfinite, weights)):
+                raise ValueError("Веса должны быть конечными числами")
             if min(weights) < 0 or abs(sum(weights) - 1) > 1e-6:
                 raise ValueError("Веса должны быть неотрицательны, их сумма равна 1")
         return self

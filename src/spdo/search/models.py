@@ -6,13 +6,15 @@
 """
 
 from datetime import datetime
+from typing import Any
 
 from pgvector.sqlalchemy import Vector
 from sqlalchemy import DateTime, ForeignKey, Index, String, Text, false, func
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
 from spdo.config import settings
-from spdo.db.base import Base
+from spdo.db.base import Base, CreatedAtMixin
 
 
 class SearchIndexEntry(Base):
@@ -57,3 +59,25 @@ class SearchIndexEntry(Base):
     updated_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), onupdate=func.now()
     )
+
+
+class SearchSettingsRecord(CreatedAtMixin, Base):
+    """Изменение параметров поиска администратором (Ф16).
+
+    Действует последняя запись: её значения перекрывают параметры из
+    окружения. Пустой набор значений возвращает параметры окружения.
+    Записи не изменяются и образуют историю настроек.
+
+    Attributes:
+        id: Идентификатор.
+        author_id: Администратор, изменивший параметры.
+        values: Перекрытые параметры (имя параметра ``Settings`` → значение).
+        comment: Причина изменения.
+    """
+
+    __tablename__ = "search_settings"
+
+    id: Mapped[int] = mapped_column(primary_key=True)
+    author_id: Mapped[int] = mapped_column(ForeignKey("users.id"))
+    values: Mapped[dict[str, Any]] = mapped_column(JSONB)
+    comment: Mapped[str] = mapped_column(Text, default="")

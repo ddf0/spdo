@@ -8,7 +8,7 @@ Alembic для автогенерации миграций и приложени
 from spdo.analytics.models import ActionLogEntry, QualityMeasurement
 from spdo.recommendations.models import Recommendation, SearchSession
 from spdo.relations.models import Link
-from spdo.search.models import SearchIndexEntry
+from spdo.search.models import SearchIndexEntry, SearchSettingsRecord
 from spdo.tickets.models import (
     Category,
     Component,
@@ -30,6 +30,7 @@ __all__ = [
     "Recommendation",
     "SearchIndexEntry",
     "SearchSession",
+    "SearchSettingsRecord",
     "Solution",
     "SolutionRating",
     "Ticket",

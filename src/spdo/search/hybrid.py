@@ -25,7 +25,7 @@ from dataclasses import dataclass
 from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.orm import Session
 
-from spdo.search.base import Candidate, IndexedTicket, SimilaritySearcher, TicketQuery
+from spdo.search.base import Candidate, IndexedTicket, SimilaritySearcher, TicketQuery, Tuning
 from spdo.search.embeddings import Encoder
 from spdo.search.lexical import ALGORITHM_VERSION, LexicalSearcher, LexicalWeights
 from spdo.search.models import SearchIndexEntry
@@ -137,13 +137,17 @@ class HybridSearcher(SimilaritySearcher):
         """
         return f"{self.encoder.model_name}+{ALGORITHM_VERSION}"
 
-    def params(self) -> dict[str, object]:
+    def params(self, tuning: Tuning | None = None) -> dict[str, object]:
         """Пороги и веса w1–w4 для сеанса поиска.
+
+        Args:
+            tuning: Снимок параметров; ``None`` — действующие.
 
         Returns:
             Пороги P1, P2 и веса составляющих.
         """
-        return {**super().params(), "weights": dataclasses.asdict(self.weights)}
+        t = tuning or self.tuning
+        return {**super().params(t), "weights": dataclasses.asdict(t.weights)}
 
     def index_values(self, ticket: IndexedTicket) -> dict[str, object]:
         """Добавляет к записи индекса вектор текста и модель, которой он вычислен.
@@ -278,14 +282,15 @@ class HybridSearcher(SimilaritySearcher):
         Raises:
             SearchUnavailableError: Модель не загружена или индекс ещё строится.
         """
+        tuning = self.tuning  # один снимок параметров на весь подбор
         scored = [
-            (tid, combine(self.weights, **parts), parts)
+            (tid, combine(tuning.weights, **parts), parts)
             for tid, parts in self._candidates(session, query)
         ]
         scored.sort(key=lambda item: -item[1])
         result = []
         for ticket_id, score, parts in scored:
-            kind = self.classify(score)
+            kind = self.classify(score, tuning)
             if kind is None or len(result) == limit:
                 break
             result.append(Candidate(ticket_id, score, kind, parts))

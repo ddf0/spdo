@@ -4,7 +4,7 @@
 {% set csrf = csrf_token(request) %}
 <section class="card">
   <h1>Пользователи</h1>
-  <p class="muted"><a href="/admin/dictionaries">Справочники</a></p>
+  <p class="muted"><a href="/admin/dictionaries">Справочники</a> · <a href="/admin/search">Параметры поиска</a></p>
   {% if done %}<p class="success" role="status">{{ done }}</p>{% endif %}
   {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
   <div class="scroll">

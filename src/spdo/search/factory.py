@@ -6,7 +6,7 @@
 :class:`~spdo.search.base.SimilaritySearcher`.
 """
 
-from functools import lru_cache
+import threading
 
 from spdo.config import SearchMode, Settings, settings
 from spdo.search.base import SimilaritySearcher
@@ -57,11 +57,68 @@ def build_searcher(config: Settings, mode: SearchMode | None = None) -> Similari
     )
 
 
-@lru_cache(maxsize=1)
+def reconfigure(searcher: SimilaritySearcher, config: Settings) -> None:
+    """Обновляет пороги и веса работающего поисковика того же режима.
+
+    Индекс в памяти и загруженная модель сохраняются.
+
+    Args:
+        searcher: Поисковик процесса.
+        config: Параметры приложения.
+    """
+    if isinstance(searcher, LexicalSearcher):
+        searcher.threshold_duplicate = config.lexical_threshold_duplicate
+        searcher.threshold_related = config.lexical_threshold_related
+        searcher.weights = LexicalWeights(
+            config.lexical_w_lexical, config.lexical_w_category, config.lexical_w_component
+        )
+    elif isinstance(searcher, HybridSearcher):
+        searcher.threshold_duplicate = config.threshold_duplicate
+        searcher.threshold_related = config.threshold_related
+        searcher.weights = HybridWeights(
+            config.w_semantic, config.w_lexical, config.w_category, config.w_component
+        )
+
+
+#: Блокировка построения и замены поисковика процесса.
+LOCK = threading.RLock()
+_searcher: SimilaritySearcher | None = None
+
+
 def get_searcher() -> SimilaritySearcher:
     """Возвращает поисковик процесса, созданный по текущей конфигурации.
+
+    Поисковик строится под блокировкой :data:`LOCK`, поэтому не видит
+    конфигурацию, которую в это время меняет администратор.
 
     Returns:
         Поисковик.
     """
-    return build_searcher(settings)
+    global _searcher  # noqa: PLW0603 — поисковик один на процесс
+    searcher = _searcher
+    if searcher is None:
+        with LOCK:
+            if _searcher is None:
+                _searcher = build_searcher(settings)
+            searcher = _searcher
+    return searcher
+
+
+def current_searcher() -> SimilaritySearcher | None:
+    """Поисковик процесса, если он уже построен (без построения).
+
+    Returns:
+        Поисковик или ``None``.
+    """
+    return _searcher
+
+
+def reset_searcher() -> None:
+    """Сбрасывает поисковик процесса; следующий вызов построит новый."""
+    global _searcher  # noqa: PLW0603
+    with LOCK:
+        _searcher = None
+
+
+#: Совместимость с прежним интерфейсом кеша.
+get_searcher.cache_clear = reset_searcher  # type: ignore[attr-defined]
