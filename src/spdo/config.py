@@ -73,6 +73,15 @@ class Settings(BaseSettings):
             TF-IDF ниже семантической, поэтому пороги режимов различаются.
             Значения по умолчанию весов и порогов базового режима подобраны
             командой ``spdo tune`` на настроечной части эталонного набора.
+            P1 обоих режимов подбирается по наибольшему F1 решения
+            «дубликат», P2 — как порог показа: наименьший порог, при котором
+            не меньше половины показанных кандидатов — дубликаты или
+            тематически близкие (``spdo.analytics.tuning``). По сравнению с
+            прежним подбором P2 по F1 «показать» на проверочной части
+            recall@3 среди показанных вырос с 0,844 до 0,875 в гибридном
+            режиме (доля ложных «дубликатов» прежняя, 19,2 %) и с 0,688 до
+            0,729 в базовом (доля ложных «дубликатов» выросла с 26,9 % до
+            30,8 % из-за снижения P1 базового режима с 0,23 до 0,21).
         search_warm_up: Строить поисковый индекс в фоне при запуске
             приложения (в тестах отключается).
         candidate_pool: Число кандидатов с наибольшим текстовым сходством,
@@ -103,7 +112,7 @@ class Settings(BaseSettings):
     embedding_allow_download: bool = False
     search_mode: SearchMode = SearchMode.HYBRID
     threshold_duplicate: float = 0.53
-    threshold_related: float = 0.52
+    threshold_related: float = 0.46
     top_n: int = 10
     w_semantic: float = 0.55
     w_lexical: float = 0.40
@@ -112,8 +121,8 @@ class Settings(BaseSettings):
     lexical_w_lexical: float = 1.0
     lexical_w_category: float = 0.0
     lexical_w_component: float = 0.0
-    lexical_threshold_duplicate: float = 0.23
-    lexical_threshold_related: float = 0.21
+    lexical_threshold_duplicate: float = 0.21
+    lexical_threshold_related: float = 0.16
     candidate_pool: int = Field(default=50, ge=10, le=500)
     search_warm_up: bool = True
     resolved_close_days: int = Field(default=14, ge=1)
