@@ -359,6 +359,7 @@ def cmd_eval(args: argparse.Namespace) -> int:
         "model_version": params.pop("model_version"),
         "params": params,
         **quality.as_dict(),
+        "suggestion": evaluation.suggestion_accuracy(corpus, args.split, rank, thresholds[1]),
     }
     text = json.dumps(report, ensure_ascii=False, indent=2)
     if args.json:

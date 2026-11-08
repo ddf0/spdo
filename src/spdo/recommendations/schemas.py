@@ -52,6 +52,22 @@ class RecommendationOut(BaseModel):
     verdict: str
 
 
+class SuggestionOut(BaseModel):
+    """Предложенные категория и компонент (Ф19).
+
+    Attributes:
+        category_id: Категория или ``None``.
+        category: Наименование категории или ``None``.
+        component_id: Компонент или ``None``.
+        component: Наименование компонента или ``None``.
+    """
+
+    category_id: int | None
+    category: str | None
+    component_id: int | None
+    component: str | None
+
+
 class SearchResponse(BaseModel):
     """Результат подбора.
 
@@ -61,6 +77,7 @@ class SearchResponse(BaseModel):
         notice: Предупреждение пользователю.
         automatic_notice: Пометка, что рекомендации автоматические (ТЗ).
         recommendations: Рекомендации по позициям.
+        suggestion: Предложенные категория и компонент.
     """
 
     session_id: int
@@ -68,6 +85,7 @@ class SearchResponse(BaseModel):
     notice: str | None
     automatic_notice: str
     recommendations: list[RecommendationOut]
+    suggestion: SuggestionOut
 
 
 class LinkIn(BaseModel):

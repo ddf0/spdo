@@ -22,6 +22,7 @@ from spdo.analytics.quality import (
     evaluate,
     lexical_ranker,
     related_map,
+    suggestion_accuracy,
 )
 from spdo.analytics.tuning import (
     LEXICAL_GRID,
@@ -60,6 +61,7 @@ __all__ = [
     "labelled_scores",
     "lexical_ranker",
     "related_map",
+    "suggestion_accuracy",
     "tune_hybrid",
     "tune_lexical",
 ]

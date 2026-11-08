@@ -18,5 +18,11 @@
   "recall_at_3_shown": 0.8750000000000001,
   "hit_at_3": 1.0,
   "mrr": 0.984375,
-  "false_duplicate_rate": 0.19230769230769232
+  "false_duplicate_rate": 0.19230769230769232,
+  "suggestion": {
+    "category_suggested": 0.8846153846153846,
+    "category_accuracy": 0.8695652173913043,
+    "component_suggested": 0.7884615384615384,
+    "component_accuracy": 0.7560975609756098
+  }
 }

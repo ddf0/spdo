@@ -12,6 +12,8 @@
 }
 
 body { margin: 0; }
+/* атрибут hidden сильнее правил display у классов (.actions, .suggestion и др.) */
+[hidden] { display: none !important; }
 main { max-width: 960px; margin: 2rem auto; padding: 0 1rem; }
 
 .topbar {
@@ -100,3 +102,5 @@ table.list select.role { min-width: 10.5rem; }
 ul.notifications { list-style: none; padding: 0; margin: 0 0 1rem; }
 ul.notifications li { padding: .6rem 0; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; gap: 1rem; }
 ul.notifications li.unread a { font-weight: 600; }
+.suggestion { background: #eef3fd; border: 1px solid #c6d5f5; border-radius: 6px; padding: .4rem .75rem; margin: 0; display: flex; gap: .75rem; align-items: center; flex-wrap: wrap; }
+.suggestion button { padding: .2rem .6rem; }

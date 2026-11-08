@@ -142,6 +142,10 @@ class LexicalIndex:
         """Возвращает актуальные документы в порядке добавления."""
         return [self._docs[r] for r in sorted(self._row.values())]
 
+    def documents_by_id(self) -> dict[int, Document]:
+        """Возвращает актуальные документы по номеру обращения."""
+        return {self._docs[r].ticket_id: self._docs[r] for r in self._row.values()}
+
     def with_docs(self, docs: list[Document]) -> "LexicalIndex":
         """Возвращает новый индекс с добавленными или заменёнными документами.
 

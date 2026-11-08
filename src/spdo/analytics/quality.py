@@ -251,3 +251,56 @@ def _accumulate(
     totals["hit"] += float(found > 0)
     first = next((pos for pos, (tid, _) in enumerate(ranked, start=1) if tid in relevant), None)
     totals["rr"] += 1 / first if first else 0.0
+
+
+#: Глубина выдачи, по которой голосуют за категорию и компонент.
+SUGGEST_DEPTH = 20
+
+
+def _suggestion_for(corpus: Corpus, ticket: dict[str, str], rank: Ranker, p2: float):  # noqa: ANN202
+    """Предложение для обращения набора и его истинные значения справочников."""
+    from spdo.recommendations.suggest import suggest  # noqa: PLC0415 — без цикла импорта
+
+    q = corpus.query(ticket)
+    query = TicketQuery(title=q.title, description=q.description, exclude_ids=q.exclude_ids)
+    docs = corpus.index.documents_by_id()
+    scored = [
+        (s, docs[tid].category_id, docs[tid].component_id)
+        for tid, s in rank(query)[:SUGGEST_DEPTH]
+        if s >= p2
+    ]
+    return suggest(scored), (q.category_id, q.component_id)
+
+
+def suggestion_accuracy(corpus: Corpus, split: str, rank: Ranker, p2: float) -> dict[str, float]:
+    """Точность предложения категории и компонента (Ф19) на части набора.
+
+    Для каждого обращения части выполняется запрос без категории и
+    компонента; кандидаты с S ≥ P2 голосуют (:mod:`spdo.recommendations.suggest`),
+    предложение сравнивается с истинными значениями.
+
+    Args:
+        corpus: Проиндексированный набор.
+        split: Часть набора.
+        rank: Функция ранжирования.
+        p2: Порог показа P2.
+
+    Returns:
+        Доли запросов с предложенной категорией и компонентом и доли верных
+        предложений среди сделанных.
+    """
+    made = {"category": [], "component": []}
+    part = [t for t in corpus.data.tickets if t["split"] == split]
+    for t in part:
+        got, (cat, comp) = _suggestion_for(corpus, t, rank, p2)
+        for key, value, truth in (
+            ("category", got.category_id, cat),
+            ("component", got.component_id, comp),
+        ):
+            if value is not None:
+                made[key].append(value == truth)
+    result = {}
+    for key, hits in made.items():
+        result[f"{key}_suggested"] = len(hits) / (len(part) or 1)
+        result[f"{key}_accuracy"] = sum(hits) / (len(hits) or 1)
+    return result

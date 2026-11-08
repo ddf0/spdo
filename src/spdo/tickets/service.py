@@ -778,3 +778,24 @@ def has_solution(session: Session, ticket_id: int) -> bool:
     """
     stmt = select(Solution.id).where(Solution.ticket_id == ticket_id).limit(1)
     return session.scalar(stmt) is not None
+
+
+def dictionary_ids(session: Session, ticket_ids: list[int]) -> dict[int, tuple[int, int]]:
+    """Категория и компонент обращений — для предложения значений (Ф19).
+
+    Права не проверяются: вызывается для кандидатов подбора, которые уже
+    отобраны с учётом видимости.
+
+    Args:
+        session: Сессия БД.
+        ticket_ids: Номера обращений.
+
+    Returns:
+        Номер обращения → (категория, компонент).
+    """
+    if not ticket_ids:
+        return {}
+    stmt = select(Ticket.id, Ticket.category_id, Ticket.component_id).where(
+        Ticket.id.in_(ticket_ids)
+    )
+    return {tid: (cat, comp) for tid, cat, comp in session.execute(stmt)}

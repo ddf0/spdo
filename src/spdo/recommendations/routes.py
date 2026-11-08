@@ -18,8 +18,11 @@ from spdo.recommendations.schemas import (
     RegistrationResponse,
     SearchRequest,
     SearchResponse,
+    SuggestionOut,
 )
+from spdo.recommendations.suggest import Suggestion
 from spdo.relations.service import RelationError
+from spdo.tickets import dictionaries
 from spdo.tickets.access import TicketNotFoundError, TicketValidationError
 from spdo.tickets.transitions import TransitionError
 from spdo.users.deps import CurrentUser, DbSession, verify_csrf
@@ -58,6 +61,18 @@ def _out(session: Session, user: CurrentUser, rec: Recommendation) -> Recommenda
         components={"sem": rec.s_sem, "lex": rec.s_lex, "cat": rec.s_cat, "comp": rec.s_comp},
         explanation=rec.explanation,
         verdict=rec.verdict.value,
+    )
+
+
+def _suggestion_out(session: Session, suggestion: Suggestion) -> SuggestionOut:
+    """Предложение с наименованиями значений справочников."""
+    categories = {c.id: c.name for c in dictionaries.list_categories(session)}
+    components = {c.id: c.name for c in dictionaries.list_components(session)}
+    return SuggestionOut(
+        category_id=suggestion.category_id,
+        category=categories.get(suggestion.category_id),
+        component_id=suggestion.component_id,
+        component=components.get(suggestion.component_id),
     )
 
 
@@ -102,6 +117,7 @@ def search(body: SearchRequest, session: DbSession, user: CurrentUser) -> Search
         notice=outcome.notice,
         automatic_notice=AUTOMATIC_NOTICE,
         recommendations=recs,
+        suggestion=_suggestion_out(session, outcome.suggestion),
     )
 
 
