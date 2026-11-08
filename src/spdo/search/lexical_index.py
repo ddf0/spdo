@@ -142,6 +142,20 @@ class LexicalIndex:
         """Возвращает актуальные документы в порядке добавления."""
         return [self._docs[r] for r in sorted(self._row.values())]
 
+    def pairwise(self, texts: list[str]) -> np.ndarray:
+        """Возвращает попарное лексическое сходство текстов словарём индекса.
+
+        Args:
+            texts: Тексты.
+
+        Returns:
+            Квадратная матрица косинусного сходства TF-IDF.
+        """
+        if self._vectorizer is None or not texts:
+            return np.zeros((len(texts), len(texts)))
+        x = self._vectorizer.transform(texts)
+        return np.asarray((x @ x.T).todense())
+
     def documents_by_id(self) -> dict[int, Document]:
         """Возвращает актуальные документы по номеру обращения."""
         return {self._docs[r].ticket_id: self._docs[r] for r in self._row.values()}
@@ -279,5 +293,20 @@ def _components(
     """Составляющие S и итоговое значение для одного документа."""
     cat = float(query.category_id is not None and doc.category_id == query.category_id)
     comp = float(query.component_id is not None and doc.component_id == query.component_id)
-    score = w.lexical * lex + w.category * cat + w.component * comp
-    return {"sem": 0.0, "lex": lex, "cat": cat, "comp": comp, "score": min(max(score, 0.0), 1.0)}
+    score = lexical_score(w, lex, cat, comp)
+    return {"sem": 0.0, "lex": lex, "cat": cat, "comp": comp, "score": score}
+
+
+def lexical_score(w: LexicalWeights, lex: float, cat: float, comp: float) -> float:
+    """Итоговый S базового режима в [0, 1].
+
+    Args:
+        w: Веса составляющих.
+        lex: Лексическое сходство.
+        cat: Совпадение категории (0 или 1).
+        comp: Совпадение компонента (0 или 1).
+
+    Returns:
+        S.
+    """
+    return min(max(w.lexical * lex + w.category * cat + w.component * comp, 0.0), 1.0)
