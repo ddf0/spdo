@@ -23,6 +23,7 @@ from spdo.users.deps import NotAuthenticatedError
 from spdo.users.routes import router as users_router
 from spdo.web.routes import router as web_router
 from spdo.web.templating import STATIC_DIR
+from spdo.web.tickets import router as web_tickets_router
 
 
 def _warm_up_search() -> None:
@@ -100,6 +101,7 @@ app.include_router(users_router)
 app.include_router(recommendations_router)
 app.include_router(tickets_router)
 app.include_router(web_router)
+app.include_router(web_tickets_router)
 
 
 @app.exception_handler(NotAuthenticatedError)

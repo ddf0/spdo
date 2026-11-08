@@ -1,13 +1,11 @@
 """Маршруты страниц веб-интерфейса."""
 
-from fastapi import APIRouter, Request, status
+from fastapi import APIRouter, Request
 from fastapi.responses import HTMLResponse, Response
 
 from spdo.config import settings
 from spdo.recommendations.routes import AUTOMATIC_NOTICE
 from spdo.tickets import dictionaries, drafts
-from spdo.tickets import service as tickets
-from spdo.tickets.access import TicketNotFoundError
 from spdo.tickets.models import TicketDraft
 from spdo.users.deps import CurrentUser, DbSession
 from spdo.web.templating import KIND_LABELS, STATUS_LABELS, templates
@@ -75,34 +73,4 @@ def new_ticket(request: Request, session: DbSession, user: CurrentUser) -> Respo
             "automatic_notice": AUTOMATIC_NOTICE,
             "page": page,
         },
-    )
-
-
-@router.get("/tickets/{ticket_id}", response_class=HTMLResponse)
-def ticket_page(
-    ticket_id: int, request: Request, session: DbSession, user: CurrentUser
-) -> Response:
-    """Показывает своё обращение (оператору — любое): номер, дата, статус, решение.
-
-    Args:
-        ticket_id: Номер обращения.
-        request: Текущий запрос.
-        session: Сессия БД.
-        user: Текущий пользователь.
-
-    Returns:
-        Страница обращения или страница 404, если обращение не существует
-        или чужое.
-    """
-    try:
-        ticket = tickets.get_ticket(session, user, ticket_id)
-    except TicketNotFoundError:
-        return templates.TemplateResponse(
-            request,
-            "not_found.html",
-            {"user": user, "message": f"Обращение № {ticket_id} не найдено или недоступно."},
-            status_code=status.HTTP_404_NOT_FOUND,
-        )
-    return templates.TemplateResponse(
-        request, "ticket.html", {"user": user, "ticket": ticket, "status_labels": STATUS_LABELS}
     )

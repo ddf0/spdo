@@ -1,0 +1,78 @@
+{% extends "base.html" %}
+{% block title %}Реестр обращений — СПДО{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>{% if user.role.value == "user" %}Мои обращения{% else %}Реестр обращений{% endif %}</h1>
+  <form method="get" action="/tickets" class="filters">
+    <label class="wide">Поиск по тексту
+      <input type="search" name="q" value="{{ flt.query }}" maxlength="200"
+             placeholder="Слова из заголовка или описания; «фраза в кавычках», -исключить">
+    </label>
+    <label>Статус
+      <select name="status">
+        <option value="">Все</option>
+        {% for s, label in status_labels.items() %}
+        <option value="{{ s.value }}" {% if flt.status == s %}selected{% endif %}>{{ label }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Категория
+      <select name="category_id">
+        <option value="">Все</option>
+        {% for c in categories %}
+        <option value="{{ c.id }}" {% if flt.category_id == c.id %}selected{% endif %}>{{ c.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <label>Компонент
+      <select name="component_id">
+        <option value="">Все</option>
+        {% for c in components %}
+        <option value="{{ c.id }}" {% if flt.component_id == c.id %}selected{% endif %}>{{ c.name }}</option>
+        {% endfor %}
+      </select>
+    </label>
+    <div class="actions">
+      <button type="submit">Найти</button>
+      <a href="/tickets">Сбросить</a>
+    </div>
+  </form>
+  {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+</section>
+
+{% if page %}
+<section class="card">
+  <p class="muted">Найдено: {{ page.total }}{% if page.pages > 1 %} · страница {{ page.page }} из {{ page.pages }}{% endif %}</p>
+  {% if page.items %}
+  <table class="list">
+    <thead><tr>
+      <th>№</th><th>Заголовок</th><th>Статус</th><th>Категория</th><th>Компонент</th>
+      <th>Дата</th>{% if user.role.value != "user" %}<th>Автор</th>{% endif %}
+    </tr></thead>
+    <tbody>
+      {% for t in page.items %}
+      <tr>
+        <td>{{ t.id }}</td>
+        <td><a href="/tickets/{{ t.id }}">{{ t.title }}</a>{% if t.confidential %} <span class="badge">конфиденциально</span>{% endif %}</td>
+        <td>{{ status_labels[t.status] }}</td>
+        <td>{{ t.category.name }}</td>
+        <td>{{ t.component.name }}</td>
+        <td class="num">{{ t.created_at | local_time }}</td>
+        {% if user.role.value != "user" %}<td>{{ authors.get(t.author_id, "") }}</td>{% endif %}
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  {% if page.pages > 1 %}
+  <nav class="pager" aria-label="Страницы">
+    {% if page.page > 1 %}<a href="{{ page_url(page.page - 1) }}">← Назад</a>{% endif %}
+    <span>{{ page.page }} / {{ page.pages }}</span>
+    {% if page.page < page.pages %}<a href="{{ page_url(page.page + 1) }}">Вперёд →</a>{% endif %}
+  </nav>
+  {% endif %}
+  {% else %}
+  <p class="muted">Обращений по заданным условиям нет.</p>
+  {% endif %}
+</section>
+{% endif %}
+{% endblock %}
