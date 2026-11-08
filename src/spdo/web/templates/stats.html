@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Статистика качества рекомендаций — СПДО{% endblock %}
+{% block content %}
+{% set s = report.sessions %}{% set r = report.recommendations %}{% set m = report.latest %}
+<section class="card">
+  <h1>Статистика качества рекомендаций</h1>
+  <form method="get" action="/stats" class="filters">
+    <label>С
+      <input type="date" name="from" value="{{ report.period.first.isoformat() }}">
+    </label>
+    <label>По
+      <input type="date" name="to" value="{{ report.period.last.isoformat() }}">
+    </label>
+    <div class="actions end"><button type="submit">Показать</button></div>
+  </form>
+  {% if error %}<p class="error" role="alert">{{ error }} Показан период по умолчанию.</p>{% endif %}
+  <p class="muted">Период: {{ report.period.first.strftime("%d.%m.%Y") }} — {{ report.period.last.strftime("%d.%m.%Y") }}</p>
+</section>
+
+<section class="tiles">
+  <div class="card tile">
+    <div class="muted">Сеансов поиска</div>
+    <div class="value">{{ s.total }}</div>
+    <div class="muted small">с регистрацией — {{ s.registered }}; поиск недоступен — {{ s.failed }}</div>
+  </div>
+  <div class="card tile">
+    <div class="muted">Сеансов с подтверждённым дубликатом</div>
+    <div class="value">{{ report.duplicate_share | percent }}</div>
+    <div class="muted small">{{ s.with_duplicate }} из {{ s.registered }} с регистрацией</div>
+  </div>
+  <div class="card tile">
+    <div class="muted">Отклонённых рекомендаций</div>
+    <div class="value">{{ report.rejected_share | percent }}</div>
+    <div class="muted small">{{ r.rejected }} из {{ r.accepted + r.rejected }} с вердиктом; без вердикта — {{ r.pending }}</div>
+  </div>
+  <div class="card tile">
+    <div class="muted">Дубликатов в первых {{ top }} позициях</div>
+    <div class="value">{{ r.duplicates_top }}</div>
+    <div class="muted small">из {{ r.duplicates }} подтверждённых ({{ report.top_share | percent }})</div>
+  </div>
+  <div class="card tile">
+    <div class="muted">recall@3 на проверочной выборке</div>
+    {% if m %}
+    <div class="value">{{ m.recall_at_3 | decimal }}</div>
+    <div class="small {{ 'ok' if m.recall_at_3 >= recall_target else 'error' }}">
+      норма ≥ {{ recall_target | decimal(2) }} — {{ "выполнена" if m.recall_at_3 >= recall_target else "не выполнена" }}</div>
+    <div class="muted small">замер {{ m.created_at | local_time }}, режим {{ m.mode }}</div>
+    {% else %}
+    <div class="value">—</div>
+    <div class="muted small">Замеров нет: выполните <code>spdo eval &lt;набор&gt; --save</code></div>
+    {% endif %}
+  </div>
+  <div class="card tile">
+    <div class="muted">Оценок решений «помогло»</div>
+    <div class="value">{{ report.helped_share | percent }}</div>
+    <div class="muted small">{{ report.ratings_helped }} из {{ report.ratings_total }}</div>
+  </div>
+</section>
+
+{% if report.measurements %}
+<section class="card">
+  <h2>Замеры качества на проверочной выборке</h2>
+  <div class="scroll">
+  <table class="list">
+    <thead><tr>
+      <th>Дата</th><th>Версия</th><th>Режим</th><th>Модель</th><th>recall@3</th><th>показанных</th>
+      <th>hit@3</th><th>MRR</th><th>Ложных «дубликатов»</th><th>Запросов</th><th>Набор</th>
+    </tr></thead>
+    <tbody>
+      {% for x in report.measurements %}
+      <tr>
+        <td class="num">{{ x.created_at | local_time }}</td>
+        <td>{{ x.release }}</td>
+        <td>{{ x.mode }}</td>
+        <td class="small">{{ x.model_version }}</td>
+        <td class="num">{{ x.recall_at_3 | decimal }}</td>
+        <td class="num">{{ x.recall_at_3_shown | decimal }}</td>
+        <td class="num">{{ x.hit_at_3 | decimal }}</td>
+        <td class="num">{{ x.mrr | decimal }}</td>
+        <td class="num">{{ x.false_duplicate_rate | percent }}</td>
+        <td class="num">{{ x.queries }}</td>
+        <td class="small" title="SHA-256 проверочной части: {{ x.holdout_checksum }}">{{ x.holdout_checksum[:12] }}…</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+{% endif %}
+
+<section class="card">
+  <h2>Как считаются показатели</h2>
+  <ul class="plain small">
+    <li>Сеанс поиска создаётся при каждом подборе, в том числе при вводе текста, поэтому доля с подтверждённым дубликатом считается от сеансов, завершённых регистрацией обращения.</li>
+    <li>Подтверждённый дубликат — рекомендация, принятая пользователем или оператором как связь «дубликат».</li>
+    <li>Доля отклонённых — от рекомендаций, по которым вынесен вердикт. При регистрации обращения все невыбранные рекомендации сеанса отклоняются (ПЦ1), поэтому в долю входят и явные отклонения, и рекомендации, не выбранные при регистрации.</li>
+    <li>Показатели считаются по текущему состоянию связей: если связь «дубликат» позже изменена, изменится и статистика за прошлые периоды.</li>
+    <li>recall@3 — доля истинных дубликатов в первых трёх позициях выдачи на неизменяемой проверочной части эталонного набора; замер выполняется командой <code>spdo eval --save</code> для каждого релиза.</li>
+  </ul>
+</section>
+{% endblock %}
