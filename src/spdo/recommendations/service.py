@@ -21,6 +21,7 @@ from spdo.analytics.journal import record_action
 from spdo.analytics.models import ActionKind
 from spdo.config import settings
 from spdo.recommendations.models import Recommendation, SearchSession, Verdict
+from spdo.recommendations.suggest import Suggestion, suggest
 from spdo.relations import service as relations
 from spdo.relations.models import RelationKind
 from spdo.search.base import (
@@ -74,12 +75,14 @@ class SearchOutcome:
         recommendations: Рекомендации по позициям.
         unavailable: Подбор не выполнен (поиск недоступен).
         notice: Предупреждение пользователю или ``None``.
+        suggestion: Предложенные категория и компонент (Ф19).
     """
 
     search_session: SearchSession
     recommendations: list[Recommendation]
     unavailable: bool
     notice: str | None
+    suggestion: Suggestion = Suggestion(None, None)
 
 
 def _decimal(value: float) -> str:
@@ -224,7 +227,21 @@ def run_search(
         session.flush()
         return SearchOutcome(record, [], True, UNAVAILABLE_NOTICE)
     record.params = {**searcher.params(tuning), "top_n": top_n}
-    shown = _unique_mains(session, actor, found, exclude)[:top_n]
+    _add_recommendations(record, _unique_mains(session, actor, found, exclude)[:top_n])
+    session.flush()
+    return SearchOutcome(
+        record, list(record.recommendations), False, None, _suggestion(session, found)
+    )
+
+
+def _suggestion(session: Session, found: list[Candidate]) -> Suggestion:
+    """Предложение категории и компонента по кандидатам подбора (Ф19)."""
+    dicts = tickets.dictionary_ids(session, [c.ticket_id for c in found])
+    return suggest([(c.score, *dicts[c.ticket_id]) for c in found if c.ticket_id in dicts])
+
+
+def _add_recommendations(record: SearchSession, shown: list[tuple[int, Candidate]]) -> None:
+    """Записывает показанные рекомендации сеанса по позициям."""
     for position, (ticket_id, c) in enumerate(shown, 1):
         record.recommendations.append(
             Recommendation(
@@ -241,8 +258,6 @@ def run_search(
             )
         )
     record.candidates_count = len(record.recommendations)
-    session.flush()
-    return SearchOutcome(record, list(record.recommendations), False, None)
 
 
 def _accessible_session(
