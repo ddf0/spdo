@@ -1,0 +1,23 @@
+{% extends "base.html" %}
+{% block title %}Уведомления — СПДО{% endblock %}
+{% block content %}
+<section class="card">
+  <h1>Уведомления</h1>
+  {% if items %}
+  <ul class="notifications">
+    {% for n in items %}
+    <li class="{{ 'unread' if n.read_at is none else '' }}">
+      <a href="/tickets/{{ n.ticket_id }}">{{ n.text }}</a>
+      <span class="muted small">{{ n.created_at | local_time }}</span>
+    </li>
+    {% endfor %}
+  </ul>
+  <form method="post" action="/notifications/read" class="inline">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">
+    <button type="submit" class="secondary">Отметить все прочитанными</button>
+  </form>
+  {% else %}
+  <p class="muted">Уведомлений нет.</p>
+  {% endif %}
+</section>
+{% endblock %}
