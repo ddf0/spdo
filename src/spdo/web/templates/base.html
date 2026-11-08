@@ -11,7 +11,7 @@
   <header class="topbar">
     <a class="brand" href="/">СПДО</a>
     {% if user %}
-    <nav><a href="/tickets">{{ "Мои обращения" if user.role.value == "user" else "Реестр обращений" }}</a><a href="/tickets/new">Новое обращение</a>{% if user.role.value != "user" %}<a href="/stats">Статистика</a>{% endif %}{% if user.role.value == "admin" %}<a href="/admin/users">Администрирование</a>{% endif %}</nav>
+    <nav><a href="/tickets">{{ "Мои обращения" if user.role.value == "user" else "Реестр обращений" }}</a><a href="/tickets/new">Новое обращение</a>{% if user.role.value != "user" %}<a href="/incidents">Массовые</a><a href="/stats">Статистика</a>{% endif %}{% if user.role.value == "admin" %}<a href="/admin/users">Администрирование</a>{% endif %}</nav>
     {% set unread = unread_notifications(user) %}<a href="/notifications" class="bell" title="Уведомления">Уведомления{% if unread %} <span class="count">{{ unread }}</span>{% endif %}</a>
     <a class="who" href="/account/password" title="Сменить пароль">{{ user.full_name }} · {{ role_labels[user.role] }}</a>
     <form method="post" action="/logout" class="inline">

@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% block title %}Массовые обращения — СПДО{% endblock %}
+{% block content %}
+{% set csrf = csrf_token(request) %}
+<section class="card">
+  <h1>Массовые обращения</h1>
+  <p class="muted small">Группы из {{ min_size }} и более однотипных открытых обращений за последние {{ window }} ч:
+    каждое сходно с центром группы (отмечен как основное) не ниже порога «возможный дубликат» с небольшой надбавкой.
+    Объединение делает выбранные обращения дубликатами основного; решение принимает оператор.</p>
+  {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+  {% if result %}
+  <p class="success" role="status">Объединено обращений: {{ result.merged | length }}{% if result.skipped %}; пропущено: {{ result.skipped | length }}{% endif %}.</p>
+  {% if result.skipped %}<ul class="plain small">{% for tid, reason in result.skipped %}<li>№ {{ tid }}: {{ reason }}</li>{% endfor %}</ul>{% endif %}
+  {% endif %}
+  {% if unavailable %}<p class="warning">Поиск сейчас недоступен — группы не рассчитаны. Повторите позже.</p>
+  {% elif not groups %}<p class="muted">Массовых однотипных обращений не найдено.</p>{% endif %}
+</section>
+
+{% for g in groups %}
+<section class="card">
+  <h2>Группа из {{ g.tickets | length }} обращений <span class="muted small">наименьшее сходство с центром {{ g.min_score | decimal(2) }}</span></h2>
+  <form method="post" action="/incidents/merge">
+    <input type="hidden" name="csrf_token" value="{{ csrf }}">
+    <table class="list">
+      <thead><tr><th>Основное</th><th>Включить</th><th>№</th><th>Заголовок</th><th>Статус</th><th>Автор</th><th>Дата</th></tr></thead>
+      <tbody>
+        {% for t in g.tickets %}
+        <tr>
+          <td><input type="radio" name="main_id" value="{{ t.id }}" {% if t.id == g.main.id %}checked{% endif %} aria-label="Основное № {{ t.id }}"></td>
+          <td><input type="checkbox" name="ticket_ids" value="{{ t.id }}" checked aria-label="Включить № {{ t.id }}"></td>
+          <td>{{ t.id }}</td>
+          <td><a href="/tickets/{{ t.id }}">{{ t.title }}</a>{% if t.confidential %} <span class="badge">конфиденциально</span>{% endif %}</td>
+          <td>{{ status_labels[t.status] }}</td>
+          <td>{{ names.get(t.author_id, "") }}</td>
+          <td class="num">{{ t.created_at | local_time }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+    <div class="actions"><button type="submit">Объединить в инцидент</button></div>
+  </form>
+</section>
+{% endfor %}
+{% endblock %}
