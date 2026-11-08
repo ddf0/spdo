@@ -1,0 +1,66 @@
+{% extends "base.html" %}
+{% block title %}Параметры поиска — СПДО{% endblock %}
+{% macro field(key) %}
+  <label>{{ labels[key] }}
+    <input name="{{ key }}" value="{{ config[key] }}" inputmode="decimal" required>
+    <span class="muted small">из окружения: {{ env[key] }}{% if key in overridden %} · <b>изменено</b>{% endif %}</span>
+  </label>
+{% endmacro %}
+{% block content %}
+{% set csrf = csrf_token(request) %}
+<section class="card">
+  <h1>Параметры поиска</h1>
+  <p class="muted"><a href="/admin/users">Пользователи</a> · <a href="/admin/dictionaries">Справочники</a></p>
+  {% if done %}<p class="success" role="status">{{ done }}</p>{% endif %}
+  {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+  {% if stale %}<p class="warning">Параметры этого процесса отличаются от сохранённых (запущено несколько процессов или применение не удалось). Сохраните параметры ещё раз или перезапустите приложение.</p>{% endif %}
+  <p class="muted small">Изменения применяются сразу, без перезапуска, и записываются в каждый сеанс поиска.
+    После изменения порогов и весов измерьте качество: <code>spdo eval &lt;набор&gt; --save</code>.
+    Модель векторов (<code>{{ config.embedding_model }}</code>) меняется только через окружение с переиндексацией (<code>spdo reindex</code>).</p>
+  <form method="post" action="/admin/search">
+    <input type="hidden" name="csrf_token" value="{{ csrf }}">
+    <div class="row">
+      <label>Режим
+        <select name="search_mode">
+          {% for m in modes %}<option value="{{ m.value }}" {% if config.search_mode == m %}selected{% endif %}>{{ "гибридный" if m.value == "hybrid" else "базовый (лексический)" }}</option>{% endfor %}
+        </select>
+        <span class="muted small">из окружения: {{ env.search_mode.value }}; при переходе на гибридный режим обращения без векторов получают их после <code>spdo reindex</code></span>
+      </label>
+      {{ field("top_n") }}
+    </div>
+    <h2>Гибридный режим</h2>
+    <div class="row">{{ field("threshold_duplicate") }}{{ field("threshold_related") }}</div>
+    <div class="row">{{ field("w_semantic") }}{{ field("w_lexical") }}</div>
+    <div class="row">{{ field("w_category") }}{{ field("w_component") }}</div>
+    <h2>Базовый режим</h2>
+    <div class="row">{{ field("lexical_threshold_duplicate") }}{{ field("lexical_threshold_related") }}</div>
+    <div class="row">{{ field("lexical_w_lexical") }}{{ field("lexical_w_category") }}</div>
+    <div class="row">{{ field("lexical_w_component") }}<label>Причина изменения <input name="comment" maxlength="500"></label></div>
+    <p class="muted small">Условия: 0 &lt; P2 &lt; P1 ≤ 1; веса режима неотрицательны и в сумме дают 1.</p>
+    <div class="actions"><button type="submit">Сохранить и применить</button></div>
+  </form>
+  <form method="post" action="/admin/search/reset" class="inline">
+    <input type="hidden" name="csrf_token" value="{{ csrf }}">
+    <button type="submit" class="secondary">Вернуть параметры окружения</button>
+  </form>
+</section>
+
+{% if history %}
+<section class="card">
+  <h2>История изменений</h2>
+  <table class="list">
+    <thead><tr><th>Дата</th><th>Администратор</th><th>Изменённые параметры</th><th>Причина</th></tr></thead>
+    <tbody>
+      {% for r in history %}
+      <tr>
+        <td class="num">{{ r.created_at | local_time }}</td>
+        <td>{{ names.get(r.author_id, "") }}</td>
+        <td class="small">{% if r["values"] %}{% for k, v in r["values"].items() %}{{ k }} = {{ v }}{% if not loop.last %}; {% endif %}{% endfor %}{% else %}параметры окружения{% endif %}</td>
+        <td class="text">{{ r.comment }}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</section>
+{% endif %}
+{% endblock %}

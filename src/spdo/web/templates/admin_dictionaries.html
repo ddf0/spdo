@@ -4,7 +4,7 @@
 {% set csrf = csrf_token(request) %}
 <section class="card">
   <h1>Справочники</h1>
-  <p class="muted"><a href="/admin/users">Пользователи</a></p>
+  <p class="muted"><a href="/admin/users">Пользователи</a> · <a href="/admin/search">Параметры поиска</a></p>
   {% if done %}<p class="success" role="status">{{ done }}</p>{% endif %}
   {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
   <p class="muted small">Элементы справочников не удаляются: на них ссылаются зарегистрированные обращения. Переименование сразу видно во всех обращениях.</p>
