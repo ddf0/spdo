@@ -21,7 +21,7 @@ from pathlib import Path
 
 from sqlalchemy import select
 
-from spdo.analytics import dataset, evaluation, loader, sodd
+from spdo.analytics import dataset, evaluation, loader, measurements, sodd
 from spdo.config import SearchMode, settings
 from spdo.db import models  # noqa: F401  регистрирует таблицы всех модулей
 from spdo.db.session import SessionLocal
@@ -336,7 +336,8 @@ def cmd_eval(args: argparse.Namespace) -> int:
     """Измеряет качество подбора на части эталонного набора.
 
     Args:
-        args: Разобранные аргументы: ``dir``, ``split``, ``mode``, ``json``.
+        args: Разобранные аргументы: ``dir``, ``split``, ``mode``, ``json``,
+            ``save`` — записать замер в БД для статистики (Ф14).
 
     Returns:
         Код завершения: 0 — успех, 1 — набор неверен.
@@ -363,6 +364,20 @@ def cmd_eval(args: argparse.Namespace) -> int:
     if args.json:
         Path(args.json).write_text(text + "\n", encoding="utf-8")
     print(text)
+    if args.save:
+        with SessionLocal() as session:
+            record = measurements.save_measurement(
+                session,
+                dataset=str(Path(args.dir).resolve()),
+                split=args.split,
+                holdout_checksum=dataset.holdout_checksum(data),
+                mode=mode.value,
+                model_version=report["model_version"],
+                params=params,
+                quality=quality,
+            )
+            session.commit()
+            print(f"Замер сохранён: № {record.id}", file=sys.stderr)
     return 0
 
 
@@ -447,6 +462,9 @@ def _add_search_commands(commands: argparse._SubParsersAction) -> None:
     ev.add_argument("--split", choices=["holdout", "tune"], default="holdout")
     ev.add_argument("--mode", choices=[m.value for m in SearchMode], default=settings.search_mode)
     ev.add_argument("--json", help="файл для сохранения результата")
+    ev.add_argument(
+        "--save", action="store_true", help="записать замер в БД для статистики качества"
+    )
     ev.set_defaults(handler=cmd_eval)
     tn = commands.add_parser("tune", help="подобрать веса и пороги базового режима")
     tn.add_argument("dir", help="каталог набора")

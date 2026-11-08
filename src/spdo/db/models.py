@@ -5,7 +5,7 @@ Alembic для автогенерации миграций и приложени
 моделями, заданные строками, разрешались при первом обращении к БД.
 """
 
-from spdo.analytics.models import ActionLogEntry
+from spdo.analytics.models import ActionLogEntry, QualityMeasurement
 from spdo.recommendations.models import Recommendation, SearchSession
 from spdo.relations.models import Link
 from spdo.search.models import SearchIndexEntry
@@ -26,6 +26,7 @@ __all__ = [
     "Component",
     "HistoryEntry",
     "Link",
+    "QualityMeasurement",
     "Recommendation",
     "SearchIndexEntry",
     "SearchSession",
