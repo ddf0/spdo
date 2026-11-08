@@ -33,6 +33,17 @@ class Settings(BaseSettings):
         session_max_age: Время жизни сессии пользователя, секунды.
         session_https_only: Передавать cookie сессии только по HTTPS.
         password_rounds: Стоимость bcrypt (логарифм числа раундов).
+        login_max_failures: Число неудачных входов по одному имени
+            пользователя за окно, после которого вход по нему временно
+            запрещён.
+        login_max_failures_ip: То же для одного IP-адреса (выше: с одного
+            адреса могут входить несколько человек); 0 — не ограничивать.
+            За обратным прокси без ``--proxy-headers`` все запросы приходят
+            с адреса прокси — ограничение по адресу тогда нужно отключить.
+            Пять неверных паролей временно блокируют вход по имени и его
+            владельцу — это осознанная плата за защиту от перебора.
+        login_window_seconds: Окно подсчёта неудачных входов и срок
+            запрета, секунды.
         embedding_model: Идентификатор модели sentence-transformers.
         embedding_device: Устройство вычисления векторов (``cpu``, ``cuda``).
         embedding_max_tokens: Наибольшая длина текста для модели в токенах.
@@ -80,6 +91,9 @@ class Settings(BaseSettings):
     session_max_age: int = 8 * 60 * 60
     session_https_only: bool = False
     password_rounds: int = 12
+    login_max_failures: int = Field(default=5, ge=1)
+    login_max_failures_ip: int = Field(default=30, ge=0)
+    login_window_seconds: int = Field(default=900, ge=1)
     embedding_model: str = "cointegrated/rubert-tiny2"
     embedding_dim: int = Field(default=312, ge=1, le=2000)
     embedding_device: str = "cpu"

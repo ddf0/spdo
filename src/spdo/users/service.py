@@ -34,6 +34,26 @@ class UserNotFoundError(UserError):
     """Пользователь не найден."""
 
 
+class WrongPasswordError(UserError):
+    """Текущий пароль указан неверно."""
+
+
+def _locked_user(session: Session, user_id: int) -> User:
+    """Пользователь, заблокированный до конца транзакции и перечитанный.
+
+    Изменения пароля, блокировки и версии сессий выполняются под этой
+    блокировкой: параллельные изменения одной записи идут по очереди и не
+    теряют увеличение версии сессий.
+
+    Raises:
+        UserNotFoundError: Пользователь не найден.
+    """
+    user = session.get(User, user_id, with_for_update=True, populate_existing=True)
+    if user is None:
+        raise UserNotFoundError(f"Пользователь {user_id} не найден")
+    return user
+
+
 class LastAdminError(UserError):
     """Операция оставила бы систему без активного администратора."""
 
@@ -191,9 +211,7 @@ def update_user(
         LastAdminError: Снимается роль или блокируется последний
             активный администратор.
     """
-    user = session.get(User, user_id)
-    if user is None:
-        raise UserNotFoundError(f"Пользователь {user_id} не найден")
+    user = _locked_user(session, user_id)
     if _loses_admin(user, role, is_active) and _active_admin_count(session) <= 1:
         raise LastAdminError("Нельзя оставить систему без активного администратора")
     _apply_changes(user, full_name, role, is_active)
@@ -210,6 +228,8 @@ def _apply_changes(
     if role is not None:
         user.role = role
     if is_active is not None:
+        if user.is_active and not is_active:
+            user.session_epoch += 1  # блокировка завершает открытые сессии
         user.is_active = is_active
 
 
@@ -220,20 +240,52 @@ def _loses_admin(user: User, role: Role | None, is_active: bool | None) -> bool:
     return (role is not None and role is not Role.ADMIN) or is_active is False
 
 
-def set_password(session: Session, user_id: int, password: str) -> None:
-    """Заменяет пароль пользователя.
+def set_password(session: Session, user_id: int, password: str) -> int:
+    """Заменяет пароль пользователя и завершает все его открытые сессии.
 
     Args:
         session: Сессия БД.
         user_id: Идентификатор пользователя.
         password: Новый открытый пароль.
 
+    Returns:
+        Новая версия сессий пользователя.
+
     Raises:
         UserNotFoundError: Пользователь не найден.
         PasswordPolicyError: Пароль не удовлетворяет требованиям.
     """
-    user = session.get(User, user_id)
-    if user is None:
-        raise UserNotFoundError(f"Пользователь {user_id} не найден")
-    user.password_hash = hash_password(password)
+    password_hash = hash_password(password)
+    user = _locked_user(session, user_id)
+    user.password_hash = password_hash
+    user.session_epoch += 1
     session.flush()
+    return user.session_epoch
+
+
+def change_own_password(session: Session, user_id: int, current: str, new: str) -> int:
+    """Меняет пароль по запросу самого пользователя.
+
+    Текущий пароль сверяется с заблокированной записью, поэтому две
+    параллельные смены не проходят обе. Все открытые сессии пользователя
+    становятся недействительными; вызывающий код может открыть текущую
+    сессию заново с возвращённой версией.
+
+    Args:
+        session: Сессия БД.
+        user_id: Идентификатор пользователя.
+        current: Текущий пароль.
+        new: Новый пароль.
+
+    Returns:
+        Новая версия сессий пользователя.
+
+    Raises:
+        UserNotFoundError: Пользователь не найден.
+        WrongPasswordError: Текущий пароль неверен.
+        PasswordPolicyError: Новый пароль не удовлетворяет требованиям.
+    """
+    user = _locked_user(session, user_id)
+    if not verify_password(current, user.password_hash):
+        raise WrongPasswordError("Текущий пароль указан неверно")
+    return set_password(session, user_id, new)

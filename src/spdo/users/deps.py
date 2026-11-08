@@ -21,6 +21,8 @@ from spdo.users.service import get_active_user
 SESSION_USER_KEY = "uid"
 #: Ключ CSRF-токена в сессии.
 SESSION_CSRF_KEY = "csrf"
+#: Ключ версии сессий пользователя (см. ``User.session_epoch``).
+SESSION_EPOCH_KEY = "epoch"
 #: Заголовок, в котором клиент передаёт CSRF-токен.
 CSRF_HEADER = "X-CSRF-Token"
 #: Поле формы с CSRF-токеном.
@@ -41,7 +43,7 @@ class NotAuthenticatedError(Exception):
     """
 
 
-def login_session(request: Request, user: User) -> None:
+def login_session(request: Request, user: User, epoch: int | None = None) -> None:
     """Начинает сессию пользователя.
 
     Прежнее содержимое сессии удаляется, CSRF-токен создаётся заново —
@@ -50,9 +52,12 @@ def login_session(request: Request, user: User) -> None:
     Args:
         request: Текущий запрос.
         user: Аутентифицированный пользователь.
+        epoch: Версия сессий, зафиксированная в транзакции смены пароля;
+            ``None`` — взять из записи пользователя.
     """
     request.session.clear()
     request.session[SESSION_USER_KEY] = user.id
+    request.session[SESSION_EPOCH_KEY] = user.session_epoch if epoch is None else epoch
     request.session[SESSION_CSRF_KEY] = secrets.token_urlsafe(32)
 
 
@@ -110,8 +115,9 @@ async def verify_csrf(request: Request) -> None:
 def get_optional_user(request: Request, session: DbSession) -> User | None:
     """Возвращает пользователя текущей сессии, если он вошёл.
 
-    Если пользователь удалён или заблокирован после входа, сессия
-    очищается.
+    Если пользователь удалён или заблокирован после входа либо его пароль
+    сменён (версия сессий в БД не совпадает с сохранённой при входе),
+    сессия очищается.
 
     Args:
         request: Текущий запрос.
@@ -124,8 +130,9 @@ def get_optional_user(request: Request, session: DbSession) -> User | None:
     if user_id is None:
         return None
     user = get_active_user(session, int(user_id))
-    if user is None:
+    if user is None or request.session.get(SESSION_EPOCH_KEY) != user.session_epoch:
         logout_session(request)
+        return None
     return user
 
 
