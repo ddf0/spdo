@@ -6,6 +6,7 @@ Alembic для автогенерации миграций и приложени
 """
 
 from spdo.analytics.models import ActionLogEntry, QualityMeasurement
+from spdo.notifications.models import Notification
 from spdo.recommendations.models import Recommendation, SearchSession
 from spdo.relations.models import Link
 from spdo.search.models import SearchIndexEntry, SearchSettingsRecord
@@ -26,6 +27,7 @@ __all__ = [
     "Component",
     "HistoryEntry",
     "Link",
+    "Notification",
     "QualityMeasurement",
     "Recommendation",
     "SearchIndexEntry",

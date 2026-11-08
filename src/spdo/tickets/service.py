@@ -748,3 +748,33 @@ def rating_stats(session: Session, start: datetime, end: datetime) -> tuple[int,
         )
     ).one()
     return total, helped
+
+
+def author_ids(session: Session, ticket_ids: list[int]) -> dict[int, int]:
+    """Авторы обращений — для системных уведомлений, без проверки прав.
+
+    Args:
+        session: Сессия БД.
+        ticket_ids: Номера обращений.
+
+    Returns:
+        Номер обращения → автор; несуществующие пропускаются.
+    """
+    if not ticket_ids:
+        return {}
+    rows = session.execute(select(Ticket.id, Ticket.author_id).where(Ticket.id.in_(ticket_ids)))
+    return {tid: author for tid, author in rows}
+
+
+def has_solution(session: Session, ticket_id: int) -> bool:
+    """Есть ли у обращения опубликованное решение (без проверки прав).
+
+    Args:
+        session: Сессия БД.
+        ticket_id: Номер обращения.
+
+    Returns:
+        ``True``, если решение опубликовано.
+    """
+    stmt = select(Solution.id).where(Solution.ticket_id == ticket_id).limit(1)
+    return session.scalar(stmt) is not None
