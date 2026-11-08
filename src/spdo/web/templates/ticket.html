@@ -16,6 +16,7 @@
     <dt>Конфиденциально</dt><dd>{{ "да" if ticket.confidential else "нет" }}</dd>
     <dt>Описание</dt><dd class="text">{{ ticket.description }}</dd>
     {% if ticket.solution %}<dt>Решение</dt><dd class="text">{{ ticket.solution.text }}</dd>{% endif %}
+    {% if main_solution %}<dt>Решение основного обращения</dt><dd class="text">{{ main_solution }}</dd>{% endif %}
   </dl>
   {% if actions.confirm %}
   <form method="post" action="/tickets/{{ ticket.id }}/confirm" class="inline">

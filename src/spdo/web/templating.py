@@ -5,6 +5,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo
 
 from fastapi.templating import Jinja2Templates
+from sqlalchemy.orm import object_session
 
 from spdo.config import settings
 from spdo.tickets.models import TicketStatus
@@ -75,11 +76,29 @@ def decimal(value: float, digits: int = 3) -> str:
     return f"{value:.{digits}f}".replace(".", ",")
 
 
+def unread_notifications(user: object) -> int:
+    """Число непрочитанных уведомлений пользователя для шапки страницы.
+
+    Запрос выполняется в сессии БД, к которой привязан объект пользователя.
+
+    Args:
+        user: Текущий пользователь.
+
+    Returns:
+        Число уведомлений; 0 вне сессии БД.
+    """
+    from spdo.notifications.service import unread_count  # noqa: PLC0415 — без цикла импорта
+
+    session = object_session(user)
+    return unread_count(session, user.id) if session is not None else 0
+
+
 #: Шаблонизатор приложения; в шаблонах доступны
 #: ``csrf_token(request)``, ``role_labels`` и фильтр ``local_time``.
 templates = Jinja2Templates(directory=TEMPLATES_DIR)
 templates.env.globals["csrf_token"] = csrf_token
 templates.env.globals["role_labels"] = ROLE_LABELS
+templates.env.globals["unread_notifications"] = unread_notifications
 templates.env.filters["local_time"] = local_time
 templates.env.filters["percent"] = percent
 templates.env.filters["decimal"] = decimal

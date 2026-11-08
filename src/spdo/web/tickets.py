@@ -18,6 +18,7 @@ from fastapi import APIRouter, Depends, Form, Request, status
 from fastapi.responses import HTMLResponse, RedirectResponse, Response
 from sqlalchemy.orm import Session
 
+from spdo.notifications import service as notifications
 from spdo.relations import service as relations
 from spdo.relations.models import Link, RelationKind
 from spdo.relations.service import RelationError
@@ -263,6 +264,23 @@ def _link_kinds(ticket: Ticket) -> list[tuple[str, str]]:
     return kinds
 
 
+def _main_solution(session: Session, user: CurrentUser, ticket: Ticket) -> str | None:
+    """Решение основного обращения для дубликата (Ф18), если основное доступно.
+
+    Автор дубликата видит решение основного обращения, на которое ему можно
+    ссылаться (своё или неконфиденциальное); конфиденциальное чужое не
+    раскрывается.
+    """
+    if ticket.status is not TicketStatus.CLOSED_DUPLICATE:
+        return None
+    main_id = relations.root_main(session, ticket.id)
+    try:
+        main = tickets.get_link_target(session, user, main_id)
+    except TicketNotFoundError:
+        return None
+    return main.solution.text if main.solution else None
+
+
 def _actions(user: CurrentUser, ticket: Ticket) -> dict[str, object]:
     """Действия, доступные пользователю над обращением."""
     staff = is_staff(user)
@@ -317,6 +335,7 @@ def _render_card(
                 if _other_end(link, ticket_id) not in hidden
             ],
             "actions": _actions(user, ticket),
+            "main_solution": _main_solution(session, user, ticket),
             "error": error,
             "done": None if error else done,
         },
@@ -444,7 +463,10 @@ def publish_solution(
         user,
         ticket_id,
         "solution",
-        lambda: tickets.publish_solution(session, user, ticket_id, text),
+        lambda: (
+            tickets.publish_solution(session, user, ticket_id, text),
+            notifications.solution_published(session, user, ticket_id),  # Ф18
+        ),
     )
 
 
@@ -523,9 +545,11 @@ def create_link(
             raise TicketValidationError("Укажите номер обращения и вид связи")
         if not is_staff(user):
             raise PermissionDeniedError("Связи вне регистрации устанавливает оператор")
-        relations.create_link(
+        link = relations.create_link(
             session, user, source_id=ticket_id, target_id=other, kind=RelationKind(kind)
         )
+        if link.kind is RelationKind.DUPLICATE:
+            notifications.linked_to_resolved(session, user, ticket_id, link.target_id)
 
     return _act(request, session, user, ticket_id, "link", action)
 

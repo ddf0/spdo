@@ -95,3 +95,8 @@ table.list td input:not([type=checkbox]), table.list td select { width: 100%; bo
 /* формы строк таблицы: поля привязаны атрибутом form, сами формы не видны */
 table.list td form[id] { display: none; }
 table.list select.role { min-width: 10.5rem; }
+.bell { color: var(--fg); text-decoration: none; }
+.bell .count { background: var(--danger); color: #fff; border-radius: 999px; padding: 0 .45rem; font-size: .8rem; }
+ul.notifications { list-style: none; padding: 0; margin: 0 0 1rem; }
+ul.notifications li { padding: .6rem 0; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; gap: 1rem; }
+ul.notifications li.unread a { font-weight: 600; }
