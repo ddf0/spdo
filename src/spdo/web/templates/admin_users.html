@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Пользователи — СПДО{% endblock %}
+{% block content %}
+{% set csrf = csrf_token(request) %}
+<section class="card">
+  <h1>Пользователи</h1>
+  <p class="muted"><a href="/admin/dictionaries">Справочники</a></p>
+  {% if done %}<p class="success" role="status">{{ done }}</p>{% endif %}
+  {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+  <div class="scroll">
+  <table class="list">
+    <thead><tr><th>Имя для входа</th><th>Отображаемое имя</th><th>Роль</th><th>Активна</th><th></th><th>Новый пароль</th></tr></thead>
+    <tbody>
+      {% for u in users %}
+      <tr>
+        <td>{{ u.username }}{% if u.id == user.id %} <span class="muted small">(вы)</span>{% endif %}
+          <form id="u-{{ u.id }}" method="post" action="/admin/users/{{ u.id }}"><input type="hidden" name="csrf_token" value="{{ csrf }}"></form>
+          <form id="p-{{ u.id }}" method="post" action="/admin/users/{{ u.id }}/password"><input type="hidden" name="csrf_token" value="{{ csrf }}"></form>
+        </td>
+        <td><input form="u-{{ u.id }}" name="full_name" value="{{ u.full_name }}" maxlength="200" aria-label="Отображаемое имя"></td>
+        <td>
+          <select form="u-{{ u.id }}" name="role" aria-label="Роль" class="role">
+            {% for r, label in roles.items() %}<option value="{{ r.value }}" {% if u.role == r %}selected{% endif %}>{{ label }}</option>{% endfor %}
+          </select>
+        </td>
+        <td><input form="u-{{ u.id }}" type="hidden" name="is_active" value="false"><input form="u-{{ u.id }}" type="checkbox" name="is_active" value="true" {% if u.is_active %}checked{% endif %} aria-label="Активна"></td>
+        <td><button form="u-{{ u.id }}" type="submit">Сохранить</button></td>
+        <td><div class="actions nowrap">
+          <input form="p-{{ u.id }}" type="password" name="password" minlength="8" autocomplete="new-password" aria-label="Новый пароль">
+          <button form="p-{{ u.id }}" type="submit" class="secondary">Задать</button>
+        </div></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  </div>
+</section>
+
+<section class="card">
+  <h2>Новый пользователь</h2>
+  <form method="post" action="/admin/users">
+    <input type="hidden" name="csrf_token" value="{{ csrf }}">
+    <div class="row">
+      <label>Имя для входа <input name="username" required maxlength="64" autocomplete="off"></label>
+      <label>Отображаемое имя <input name="full_name" maxlength="200"></label>
+    </div>
+    <div class="row">
+      <label>Пароль (не короче 8 символов) <input type="password" name="password" required minlength="8" autocomplete="new-password"></label>
+      <label>Роль
+        <select name="role">
+          {% for r, label in roles.items() %}<option value="{{ r.value }}">{{ label }}</option>{% endfor %}
+        </select>
+      </label>
+    </div>
+    <div class="actions"><button type="submit">Создать</button></div>
+  </form>
+</section>
+{% endblock %}

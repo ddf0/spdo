@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% block title %}Справочники — СПДО{% endblock %}
+{% block content %}
+{% set csrf = csrf_token(request) %}
+<section class="card">
+  <h1>Справочники</h1>
+  <p class="muted"><a href="/admin/users">Пользователи</a></p>
+  {% if done %}<p class="success" role="status">{{ done }}</p>{% endif %}
+  {% if error %}<p class="error" role="alert">{{ error }}</p>{% endif %}
+  <p class="muted small">Элементы справочников не удаляются: на них ссылаются зарегистрированные обращения. Переименование сразу видно во всех обращениях.</p>
+</section>
+
+<section class="card">
+  <h2>Категории</h2>
+  <table class="list">
+    <thead><tr><th>Наименование</th><th>Пояснение</th><th></th></tr></thead>
+    <tbody>
+      {% for c in categories %}
+      <tr>
+        <td><form id="c-{{ c.id }}" method="post" action="/admin/categories"><input type="hidden" name="csrf_token" value="{{ csrf }}"><input type="hidden" name="item_id" value="{{ c.id }}"></form>
+          <input form="c-{{ c.id }}" name="name" value="{{ c.name }}" required maxlength="100" aria-label="Наименование"></td>
+        <td><input form="c-{{ c.id }}" name="description" value="{{ c.description }}" aria-label="Пояснение"></td>
+        <td><button form="c-{{ c.id }}" type="submit" class="secondary">Сохранить</button></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <form method="post" action="/admin/categories">
+    <input type="hidden" name="csrf_token" value="{{ csrf }}">
+    <div class="row">
+      <label>Новая категория <input name="name" required maxlength="100"></label>
+      <label>Пояснение <input name="description"></label>
+    </div>
+    <div class="actions"><button type="submit">Добавить категорию</button></div>
+  </form>
+</section>
+
+<section class="card">
+  <h2>Компоненты</h2>
+  <table class="list">
+    <thead><tr><th>Наименование</th><th></th></tr></thead>
+    <tbody>
+      {% for c in components %}
+      <tr>
+        <td><form id="m-{{ c.id }}" method="post" action="/admin/components"><input type="hidden" name="csrf_token" value="{{ csrf }}"><input type="hidden" name="item_id" value="{{ c.id }}"></form>
+          <input form="m-{{ c.id }}" name="name" value="{{ c.name }}" required maxlength="100" aria-label="Наименование"></td>
+        <td><button form="m-{{ c.id }}" type="submit" class="secondary">Сохранить</button></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+  <form method="post" action="/admin/components">
+    <input type="hidden" name="csrf_token" value="{{ csrf }}">
+    <label>Новый компонент <input name="name" required maxlength="100"></label>
+    <div class="actions"><button type="submit">Добавить компонент</button></div>
+  </form>
+</section>
+{% endblock %}
