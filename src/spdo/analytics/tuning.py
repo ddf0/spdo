@@ -2,10 +2,20 @@
 
 Веса выбираются по наибольшему recall@3 ранжирования на сетке (при
 равенстве — первые в сетке). Затем пороги по парам (S, метка) из первых
-:data:`TUNE_DEPTH` позиций выдачи всех запросов части: P2 — по наибольшему
-F1 решения «показать» (дубликат или близкое), P1 — по наибольшему F1
-решения «дубликат» при условии P1 > P2. Это приближение: в работе решение
-принимается по каждой позиции выдачи, а не по совокупности пар.
+:data:`TUNE_DEPTH` позиций выдачи всех запросов части:
+
+* P1 — по наибольшему F1 решения «дубликат»;
+* P2 — порог показа: наименьший порог ниже P1, при котором среди
+  показанных кандидатов не меньше :data:`SHOW_PRECISION` полезных
+  (дубликатов или тематически близких).
+
+Прежнее правило — P2 по наибольшему F1 решения «показать» — давало P2 почти
+равным P1 (разница 0,01): по S тематически близкие обращения от дубликатов
+не отделяются, поэтому F1 «показать» достигает максимума у того же порога,
+и полоса «возможно связанное» вырождалась. Порог показа по доле полезных
+выдаёт пользователю больше истинных дубликатов, а решение по-прежнему
+принимает человек. Это приближение: в работе решение принимается по каждой
+позиции выдачи, а не по совокупности пар.
 """
 
 from collections.abc import Callable, Iterable
@@ -38,6 +48,10 @@ SEMANTIC_GRID = (0.2, 0.3, 0.4, 0.5, 0.55, 0.6, 0.7, 0.8, 0.9, 1.0)
 LEXICAL_GRID = (0.0, 0.1, 0.15, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8)
 #: Глубина выдачи, по которой собираются пары (S, метка) для подбора порогов.
 TUNE_DEPTH = 10
+#: Наименьшая доля полезных кандидатов (дубликатов и близких) среди
+#: показанных при пороге P2: не меньше половины показанного должно быть
+#: по делу. Значение — допущение разработчиков, в ТЗ не задано.
+SHOW_PRECISION = 0.5
 
 
 @dataclass(frozen=True, slots=True)
@@ -130,17 +144,36 @@ def best_threshold(pairs: list[tuple[float, bool]], low: float = 0.0) -> tuple[f
     return best
 
 
+def show_threshold(pairs: list[tuple[float, bool]], below: float) -> float:
+    """Наименьший порог ниже ``below`` с долей полезных не меньше :data:`SHOW_PRECISION`.
+
+    Args:
+        pairs: Пары (S, полезен ли кандидат).
+        below: Верхняя граница (порог строго меньше), то есть P1.
+
+    Returns:
+        Порог P2; если подходящего нет — ``below - 0.01``.
+    """
+    for t in THRESHOLD_GRID:  # сетка по возрастанию: первый подходящий — наименьший
+        if t >= below:
+            break
+        shown = [useful for s, useful in pairs if s >= t]
+        if shown and sum(shown) / len(shown) >= SHOW_PRECISION:
+            return t
+    return round(below - 0.01, 2)
+
+
 def _thresholds(pairs: list[tuple[float, str]]) -> tuple[float, float, float, float]:
     """Подбирает P1 > P2 по парам (S, метка).
 
     Returns:
-        (P1, P2, F1 «дубликат», F1 «показать»).
+        (P1, P2, F1 «дубликат» при P1, F1 «показать» при P2).
     """
-    p2, f1_shown = best_threshold([(s, lbl != "other") for s, lbl in pairs])
-    p1, f1_dup = best_threshold([(s, lbl == "duplicate") for s, lbl in pairs], low=p2)
-    if p1 <= p2:  # P2 у края сетки: сохранить инвариант P1 > P2
-        p2 = round(p1 - 0.01, 2)
-    return p1, p2, f1_dup, f1_shown
+    dup = [(s, lbl == "duplicate") for s, lbl in pairs]
+    useful = [(s, lbl != "other") for s, lbl in pairs]
+    p1, f1_dup = best_threshold(dup)
+    p2 = show_threshold(useful, p1)
+    return p1, p2, f1_dup, _f1(useful, p2, sum(u for _, u in useful))
 
 
 def _best_weights(

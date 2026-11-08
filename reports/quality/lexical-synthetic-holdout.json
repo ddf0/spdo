@@ -9,13 +9,13 @@
       0.0,
       0.0
     ],
-    "threshold_duplicate": 0.23,
-    "threshold_related": 0.21
+    "threshold_duplicate": 0.21,
+    "threshold_related": 0.16
   },
   "queries": 32,
   "recall_at_3": 0.7395833333333335,
-  "recall_at_3_shown": 0.6875,
+  "recall_at_3_shown": 0.7291666666666669,
   "hit_at_3": 0.96875,
   "mrr": 0.9244791666666666,
-  "false_duplicate_rate": 0.2692307692307692
+  "false_duplicate_rate": 0.3076923076923077
 }
