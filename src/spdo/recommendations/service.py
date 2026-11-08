@@ -23,7 +23,14 @@ from spdo.config import settings
 from spdo.recommendations.models import Recommendation, SearchSession, Verdict
 from spdo.relations import service as relations
 from spdo.relations.models import RelationKind
-from spdo.search.base import Candidate, SearchScope, SearchUnavailableError, TicketQuery
+from spdo.search.base import (
+    Candidate,
+    SearchScope,
+    SearchUnavailableError,
+    SimilaritySearcher,
+    TicketQuery,
+    Tuning,
+)
 from spdo.search.factory import get_searcher
 from spdo.tickets import service as tickets
 from spdo.tickets.access import Actor, TicketNotFoundError, TicketValidationError, is_staff
@@ -131,7 +138,24 @@ def _unique_mains(
         main_id = _main_candidate(session, actor, c)
         if main_id is not None and main_id not in exclude and main_id not in shown:
             shown[main_id] = c
-    return list(shown.items())[: settings.top_n]
+    return list(shown.items())
+
+
+def _search_with_snapshot(
+    searcher: SimilaritySearcher, session: Session, query: TicketQuery, limit: int
+) -> tuple[list[Candidate], Tuning]:
+    """Подбор и снимок параметров, с которыми он выполнен.
+
+    Если администратор сменил параметры во время подбора (Ф16), подбор
+    повторяется один раз: в сеанс записываются ровно те пороги и веса,
+    по которым отобраны кандидаты.
+    """
+    for _ in range(2):
+        tuning = searcher.tuning
+        found = searcher.search(session, query, limit)
+        if searcher.tuning is tuning:
+            break
+    return found, tuning
 
 
 def run_search(
@@ -188,17 +212,20 @@ def run_search(
         component_id=component_id,
         mode=searcher.mode,
         model_version=searcher.model_version,
-        params={**searcher.params(), "top_n": settings.top_n},
     )
     session.add(record)
+    top_n = settings.top_n  # одно значение N на весь подбор
     try:
-        found = searcher.search(session, query, settings.top_n * OVERFETCH)
+        found, tuning = _search_with_snapshot(searcher, session, query, top_n * OVERFETCH)
     except SearchUnavailableError as exc:
+        record.params = {**searcher.params(), "top_n": top_n}
         logger.warning("Подбор не выполнен: %s", exc)
         record.failed = True
         session.flush()
         return SearchOutcome(record, [], True, UNAVAILABLE_NOTICE)
-    for position, (ticket_id, c) in enumerate(_unique_mains(session, actor, found, exclude), 1):
+    record.params = {**searcher.params(tuning), "top_n": top_n}
+    shown = _unique_mains(session, actor, found, exclude)[:top_n]
+    for position, (ticket_id, c) in enumerate(shown, 1):
         record.recommendations.append(
             Recommendation(
                 ticket_id=ticket_id,

@@ -1,8 +1,10 @@
 """Интерфейс поиска похожих обращений и общие структуры данных."""
 
+import dataclasses
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
 from enum import StrEnum
+from typing import Any
 
 from sqlalchemy import case, delete, func
 from sqlalchemy.dialects.postgresql import insert
@@ -122,6 +124,25 @@ class Candidate:
     components: dict[str, float] = field(default_factory=dict)
 
 
+@dataclass(frozen=True, slots=True)
+class Tuning:
+    """Настраиваемые параметры подбора, заменяемые одним присваиванием.
+
+    Пороги и веса хранятся вместе в неизменяемом объекте: подбор берёт его
+    снимок в начале и не видит половину нового набора параметров, если
+    администратор меняет их в это время (Ф16).
+
+    Attributes:
+        threshold_duplicate: Порог P1.
+        threshold_related: Порог P2.
+        weights: Веса составляющих S режима или ``None``.
+    """
+
+    threshold_duplicate: float
+    threshold_related: float
+    weights: Any = None
+
+
 class SimilaritySearcher(ABC):
     """Базовый класс поиска похожих обращений.
 
@@ -130,8 +151,7 @@ class SimilaritySearcher(ABC):
     обращения в поисковый индекс (таблица ``search_index``).
 
     Attributes:
-        threshold_duplicate: Порог P1.
-        threshold_related: Порог P2.
+        tuning: Действующие пороги и веса.
     """
 
     #: Идентификатор режима, сохраняемый в сеансе поиска.
@@ -144,8 +164,34 @@ class SimilaritySearcher(ABC):
             threshold_duplicate: Порог P1 для «возможного дубликата».
             threshold_related: Порог P2 для «возможно связанного».
         """
-        self.threshold_duplicate = threshold_duplicate
-        self.threshold_related = threshold_related
+        self.tuning = Tuning(threshold_duplicate, threshold_related)
+
+    @property
+    def threshold_duplicate(self) -> float:
+        """Порог P1 действующих параметров."""
+        return self.tuning.threshold_duplicate
+
+    @threshold_duplicate.setter
+    def threshold_duplicate(self, value: float) -> None:
+        self.tuning = dataclasses.replace(self.tuning, threshold_duplicate=value)
+
+    @property
+    def threshold_related(self) -> float:
+        """Порог P2 действующих параметров."""
+        return self.tuning.threshold_related
+
+    @threshold_related.setter
+    def threshold_related(self, value: float) -> None:
+        self.tuning = dataclasses.replace(self.tuning, threshold_related=value)
+
+    @property
+    def weights(self) -> Any:  # noqa: ANN401 — веса своего типа у каждого режима
+        """Веса составляющих S действующих параметров."""
+        return self.tuning.weights
+
+    @weights.setter
+    def weights(self, value: Any) -> None:  # noqa: ANN401
+        self.tuning = dataclasses.replace(self.tuning, weights=value)
 
     @property
     @abstractmethod
@@ -168,17 +214,21 @@ class SimilaritySearcher(ABC):
             SearchUnavailableError: Поиск временно недоступен.
         """
 
-    def params(self) -> dict[str, object]:
+    def params(self, tuning: Tuning | None = None) -> dict[str, object]:
         """Возвращает параметры подбора для записи в сеанс поиска.
 
         Наследники дополняют пороги своими весами.
 
+        Args:
+            tuning: Снимок параметров; ``None`` — действующие.
+
         Returns:
             Пороги P1 и P2.
         """
+        t = tuning or self.tuning
         return {
-            "threshold_duplicate": self.threshold_duplicate,
-            "threshold_related": self.threshold_related,
+            "threshold_duplicate": t.threshold_duplicate,
+            "threshold_related": t.threshold_related,
         }
 
     def warm_up(self, session: Session) -> None:
@@ -256,18 +306,20 @@ class SimilaritySearcher(ABC):
         """
         session.execute(delete(SearchIndexEntry).where(SearchIndexEntry.ticket_id == ticket_id))
 
-    def classify(self, score: float) -> LinkKind | None:
+    def classify(self, score: float, tuning: Tuning | None = None) -> LinkKind | None:
         """Определяет вид связи по двухпороговой схеме.
 
         Args:
             score: Итоговый коэффициент сходства.
+            tuning: Снимок параметров подбора; ``None`` — действующие.
 
         Returns:
             ``DUPLICATE`` при S ≥ P1, ``RELATED`` при P2 ≤ S < P1,
             ``None`` — если кандидат не показывается.
         """
-        if score >= self.threshold_duplicate:
+        t = tuning or self.tuning
+        if score >= t.threshold_duplicate:
             return LinkKind.DUPLICATE
-        if score >= self.threshold_related:
+        if score >= t.threshold_related:
             return LinkKind.RELATED
         return None
