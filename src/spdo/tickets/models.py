@@ -13,6 +13,7 @@ from sqlalchemy import (
     UniqueConstraint,
     false,
     func,
+    text,
 )
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
@@ -108,6 +109,12 @@ class Ticket(CreatedAtMixin, Base):
         Index("ix_tickets_category_id", "category_id"),
         Index("ix_tickets_component_id", "component_id"),
         Index("ix_tickets_author_id", "author_id"),
+        # Полнотекстовый поиск реестра (Ф11); выражение — как в tickets.registry.
+        Index(
+            "ix_tickets_fts",
+            text("to_tsvector('russian'::regconfig, title || ' ' || description)"),
+            postgresql_using="gin",
+        ),
     )
 
     id: Mapped[int] = mapped_column(primary_key=True)

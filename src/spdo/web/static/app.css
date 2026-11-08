@@ -71,3 +71,15 @@ dl.props dd { margin: 0; }
 table.list.stale tbody { opacity: .55; }
 
 @media (max-width: 640px) { .row { grid-template-columns: 1fr; } }
+
+.topbar nav { display: flex; gap: 1rem; }
+.filters { grid-template-columns: repeat(3, 1fr); align-items: end; }
+.filters .wide { grid-column: 1 / -1; }
+.filters .actions { grid-column: 1 / -1; }
+.badge { font-size: .75rem; padding: .1rem .4rem; border-radius: 4px; background: #fdecea; color: var(--danger); }
+.pager { display: flex; gap: 1rem; justify-content: center; margin-top: 1rem; }
+.success { background: #e7f6ec; border: 1px solid #9fd6b0; border-radius: 6px; padding: .5rem .75rem; }
+ul.plain { margin: 0; padding-left: 1.2rem; }
+.actions.end { align-self: end; }
+section.card form + form { margin-top: 1.25rem; padding-top: 1.25rem; border-top: 1px solid var(--border); }
+@media (max-width: 640px) { .filters { grid-template-columns: 1fr; } }

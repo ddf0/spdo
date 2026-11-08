@@ -138,6 +138,22 @@ def list_users(session: Session) -> list[User]:
     return list(session.scalars(select(User).order_by(User.username)))
 
 
+def display_names(session: Session, user_ids: set[int]) -> dict[int, str]:
+    """Возвращает отображаемые имена пользователей по идентификаторам.
+
+    Args:
+        session: Сессия БД.
+        user_ids: Идентификаторы пользователей.
+
+    Returns:
+        Идентификатор → отображаемое имя; отсутствующие пропускаются.
+    """
+    if not user_ids:
+        return {}
+    rows = session.execute(select(User.id, User.full_name).where(User.id.in_(user_ids)))
+    return {uid: name for uid, name in rows}
+
+
 def _active_admin_count(session: Session) -> int:
     """Считает активных администраторов, блокируя их записи до конца транзакции.
 
