@@ -90,6 +90,18 @@ class Settings(BaseSettings):
             подтверждённое автором обращение может быть закрыто командой
             ``spdo close-expired``. В ТЗ значение не задано; 14 дней —
             допущение разработчиков.
+        incident_window_hours: Окно поиска массовых обращений, часов (Ф20).
+        incident_min_size: Наименьшее число однотипных обращений в окне,
+            при котором они предлагаются к объединению в инцидент.
+        incident_threshold_offset: Надбавка к порогу P1 действующего режима
+            для группировки массовых обращений. P1 настроен для показа
+            рекомендаций человеку и для автоматической группировки мягок:
+            на эталонном наборе (гибридный режим) при пороге P1 = 0,53
+            чистота групп 0,84, при P1 + 0,03 = 0,56 — 0,90 при охвате 71
+            обращения из 89.
+        incident_max_tickets: Наибольшее число свежих обращений, среди
+            которых ищутся группы (ограничивает время расчёта). Значения по
+            умолчанию — допущения разработчиков, в ТЗ не заданы.
         display_timezone: Часовой пояс дат в интерфейсе (имя IANA); в БД
             даты хранятся в UTC.
     """
@@ -126,6 +138,10 @@ class Settings(BaseSettings):
     candidate_pool: int = Field(default=50, ge=10, le=500)
     search_warm_up: bool = True
     resolved_close_days: int = Field(default=14, ge=1)
+    incident_window_hours: int = Field(default=24, ge=1, le=24 * 30)
+    incident_min_size: int = Field(default=3, ge=2)
+    incident_threshold_offset: float = Field(default=0.03, ge=0.0, le=0.5)
+    incident_max_tickets: int = Field(default=500, ge=2, le=5000)
     display_timezone: str = "Europe/Moscow"
 
     _secret_key_generated: bool = PrivateAttr(default=False)

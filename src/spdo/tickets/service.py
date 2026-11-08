@@ -799,3 +799,34 @@ def dictionary_ids(session: Session, ticket_ids: list[int]) -> dict[int, tuple[i
         Ticket.id.in_(ticket_ids)
     )
     return {tid: (cat, comp) for tid, cat, comp in session.execute(stmt)}
+
+
+def recent_open(session: Session, actor: Actor, since: datetime, limit: int) -> list[Ticket]:
+    """Свежие открытые обращения — кандидаты в массовый инцидент (Ф20).
+
+    Открытые — в статусах «Новое» и «В работе»; дубликаты и закрытые не
+    входят.
+
+    Args:
+        session: Сессия БД.
+        actor: Оператор или администратор.
+        since: Начало окна.
+        limit: Наибольшее число обращений (самые новые).
+
+    Returns:
+        Обращения от старых к новым.
+
+    Raises:
+        PermissionDeniedError: Пользователь не оператор.
+    """
+    require_staff(actor)
+    stmt = (
+        select(Ticket)
+        .where(
+            Ticket.created_at >= since,
+            Ticket.status.in_((TicketStatus.NEW, TicketStatus.IN_PROGRESS)),
+        )
+        .order_by(Ticket.id.desc())
+        .limit(limit)
+    )
+    return sorted(session.scalars(stmt), key=lambda t: t.id)

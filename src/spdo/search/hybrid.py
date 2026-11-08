@@ -22,10 +22,21 @@ import dataclasses
 import logging
 from dataclasses import dataclass
 
+import numpy as np
 from sqlalchemy import and_, case, func, or_, select
 from sqlalchemy.orm import Session
 
-from spdo.search.base import Candidate, IndexedTicket, SimilaritySearcher, TicketQuery, Tuning
+from spdo.search.base import (
+    Candidate,
+    IndexedTicket,
+    SimilaritySearcher,
+    TicketQuery,
+    Tuning,
+    dictionary_matrices,
+    finish_pairwise,
+    index_rows,
+    texts_of,
+)
 from spdo.search.embeddings import Encoder
 from spdo.search.lexical import ALGORITHM_VERSION, LexicalSearcher, LexicalWeights
 from spdo.search.models import SearchIndexEntry
@@ -267,6 +278,46 @@ class HybridSearcher(SimilaritySearcher):
             )
             for i, row in enumerate(candidates)
         ]
+
+    def pairwise(self, session: Session, ticket_ids: list[int]) -> np.ndarray:
+        """Попарный S гибридного режима матричным расчётом (Ф20).
+
+        Смысловая составляющая — скалярное произведение нормированных
+        векторов текущей модели из индекса (у записей без вектора — 0),
+        лексическая — словарём снимка; итог — функцией :func:`combine`.
+
+        Args:
+            session: Сессия БД.
+            ticket_ids: Номера обращений.
+
+        Returns:
+            Симметричная матрица S; диагональ и отсутствующие в индексе — нули.
+
+        Raises:
+            SearchUnavailableError: Индекс ещё строится или модель недоступна.
+        """
+        w = self.tuning.weights
+        rows = index_rows(session, ticket_ids)
+        vectors = self._vectors(rows)
+        lex = self._lexical.snapshot(session).pairwise(texts_of(rows))
+        cat, comp = dictionary_matrices(rows)
+        score = np.vectorize(lambda s, x, c, m: combine(w, s, x, c, m))(
+            vectors @ vectors.T, lex, cat, comp
+        )
+        return finish_pairwise(score, rows)
+
+    def _vectors(self, rows: list) -> np.ndarray:
+        """Векторы текущей модели по записям индекса; без вектора — нули."""
+        zero = np.zeros(self.encoder.dim)
+        model = self.encoder.model_name
+        return np.asarray(
+            [
+                np.asarray(r.embedding)
+                if r is not None and r.embedding is not None and r.model_version == model
+                else zero
+                for r in rows
+            ]
+        )
 
     def search(self, session: Session, query: TicketQuery, limit: int) -> list[Candidate]:
         """Возвращает кандидатов по гибридному сходству.

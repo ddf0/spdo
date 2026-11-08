@@ -23,6 +23,7 @@ from spdo.tickets.routes import router as tickets_router
 from spdo.users.deps import NotAuthenticatedError
 from spdo.users.routes import router as users_router
 from spdo.web.admin import router as web_admin_router
+from spdo.web.incidents import router as web_incidents_router
 from spdo.web.notifications import router as web_notifications_router
 from spdo.web.routes import router as web_router
 from spdo.web.stats import router as web_stats_router
@@ -122,6 +123,7 @@ app.include_router(web_router)
 app.include_router(web_tickets_router)
 app.include_router(web_stats_router)
 app.include_router(web_admin_router)
+app.include_router(web_incidents_router)
 app.include_router(web_notifications_router)
 
 

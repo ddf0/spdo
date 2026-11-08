@@ -23,6 +23,7 @@ import threading
 import time
 from datetime import datetime, timedelta
 
+import numpy as np
 from sqlalchemy import select
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session
@@ -33,12 +34,17 @@ from spdo.search.base import (
     SimilaritySearcher,
     TicketQuery,
     Tuning,
+    dictionary_matrices,
+    finish_pairwise,
+    index_rows,
+    texts_of,
 )
 from spdo.search.lexical_index import (
     REFIT_GROWTH,
     Document,
     LexicalIndex,
     LexicalWeights,
+    lexical_score,
     normalize,
 )
 from spdo.search.models import SearchIndexEntry
@@ -268,6 +274,26 @@ class LexicalSearcher(SimilaritySearcher):
             raise SearchUnavailableError("Поисковый индекс ещё строится, повторите позже")
         self._sync(engine)
         return self._index
+
+    def pairwise(self, session: Session, ticket_ids: list[int]) -> np.ndarray:
+        """Попарный S базового режима матричным расчётом (Ф20).
+
+        Args:
+            session: Сессия БД.
+            ticket_ids: Номера обращений.
+
+        Returns:
+            Симметричная матрица S; диагональ и отсутствующие в индексе — нули.
+
+        Raises:
+            SearchUnavailableError: Индекс ещё строится.
+        """
+        w = self.tuning.weights
+        rows = index_rows(session, ticket_ids)
+        lex = self.snapshot(session).pairwise(texts_of(rows))
+        cat, comp = dictionary_matrices(rows)
+        score = np.vectorize(lambda a, b, c: lexical_score(w, a, b, c))(lex, cat, comp)
+        return finish_pairwise(score, rows)
 
     def search(self, session: Session, query: TicketQuery, limit: int) -> list[Candidate]:
         """Возвращает кандидатов по лексическому сходству.

@@ -6,7 +6,8 @@ from dataclasses import dataclass, field
 from enum import StrEnum
 from typing import Any
 
-from sqlalchemy import case, delete, func
+import numpy as np
+from sqlalchemy import case, delete, func, select
 from sqlalchemy.dialects.postgresql import insert
 from sqlalchemy.orm import Session
 
@@ -231,6 +232,41 @@ class SimilaritySearcher(ABC):
             "threshold_related": t.threshold_related,
         }
 
+    def pairwise(self, session: Session, ticket_ids: list[int]) -> np.ndarray:
+        """Возвращает попарный коэффициент сходства S обращений индекса (Ф20).
+
+        По умолчанию — подбором для каждого обращения среди остальных;
+        режимы переопределяют метод матричным расчётом по той же формуле S.
+        Видимость не ограничивается: метод вызывается для оператора.
+
+        Args:
+            session: Сессия БД.
+            ticket_ids: Номера обращений.
+
+        Returns:
+            Симметричная матрица S в порядке номеров; диагональ — нули.
+
+        Raises:
+            SearchUnavailableError: Поиск временно недоступен.
+        """
+        pos = {tid: i for i, tid in enumerate(ticket_ids)}
+        matrix = np.zeros((len(ticket_ids), len(ticket_ids)))
+        for i, row in enumerate(index_rows(session, ticket_ids)):
+            if row is None:
+                continue
+            query = TicketQuery(
+                title=row.text,
+                description="",
+                category_id=row.category_id,
+                component_id=row.component_id,
+                exclude_ids=frozenset({ticket_ids[i]}),
+            )
+            for c in self.search(session, query, len(ticket_ids)):
+                if c.ticket_id in pos:
+                    matrix[i, pos[c.ticket_id]] = c.score
+        np.fill_diagonal(matrix, 0.0)
+        return np.maximum(matrix, matrix.T)
+
     def warm_up(self, session: Session) -> None:
         """Подготавливает поисковик к работе при запуске приложения.
 
@@ -323,3 +359,82 @@ class SimilaritySearcher(ABC):
         if score >= t.threshold_related:
             return LinkKind.RELATED
         return None
+
+
+def index_rows(session: Session, ticket_ids: list[int]) -> list:
+    """Записи индекса в порядке номеров; отсутствующие — ``None``.
+
+    Args:
+        session: Сессия БД.
+        ticket_ids: Номера обращений.
+
+    Returns:
+        Строки с полями ``text``, ``category_id``, ``component_id``,
+        ``embedding``, ``model_version`` или ``None``.
+    """
+    stmt = select(
+        SearchIndexEntry.ticket_id,
+        SearchIndexEntry.text,
+        SearchIndexEntry.category_id,
+        SearchIndexEntry.component_id,
+        SearchIndexEntry.embedding,
+        SearchIndexEntry.model_version,
+    ).where(SearchIndexEntry.ticket_id.in_(ticket_ids))
+    rows = {r.ticket_id: r for r in session.execute(stmt)}
+    return [rows.get(tid) for tid in ticket_ids]
+
+
+def same_matrix(values: list[int | None]) -> np.ndarray:
+    """Матрица совпадений значений справочника: 1, если оба заданы и равны.
+
+    Args:
+        values: Значения по порядку.
+
+    Returns:
+        Квадратная матрица из 0 и 1.
+    """
+    arr = np.asarray([-1 if v is None else v for v in values])
+    return ((arr[:, None] == arr[None, :]) & (arr[:, None] >= 0)).astype(float)
+
+
+def dictionary_matrices(rows: list) -> tuple[np.ndarray, np.ndarray]:
+    """Матрицы совпадения категории и компонента записей индекса.
+
+    Args:
+        rows: Записи :func:`index_rows` (``None`` — нет в индексе).
+
+    Returns:
+        Пара матриц (категория, компонент).
+    """
+    cat = same_matrix([r.category_id if r else None for r in rows])
+    comp = same_matrix([r.component_id if r else None for r in rows])
+    return cat, comp
+
+
+def finish_pairwise(score: np.ndarray, rows: list) -> np.ndarray:
+    """Обнуляет диагональ и строки обращений, которых нет в индексе.
+
+    Args:
+        score: Матрица S.
+        rows: Записи :func:`index_rows`.
+
+    Returns:
+        Та же матрица.
+    """
+    absent = np.asarray([r is None for r in rows])
+    score[absent, :] = 0.0
+    score[:, absent] = 0.0
+    np.fill_diagonal(score, 0.0)
+    return score
+
+
+def texts_of(rows: list) -> list[str]:
+    """Тексты записей индекса; отсутствующие — пустые строки.
+
+    Args:
+        rows: Записи :func:`index_rows`.
+
+    Returns:
+        Тексты.
+    """
+    return [r.text if r else "" for r in rows]
