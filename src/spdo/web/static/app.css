@@ -19,7 +19,8 @@ main { max-width: 960px; margin: 2rem auto; padding: 0 1rem; }
   padding: .75rem 1.5rem; background: var(--card); border-bottom: 1px solid var(--border);
 }
 .brand { font-weight: 700; color: var(--accent); text-decoration: none; margin-right: auto; }
-.who { color: var(--muted); }
+.who { color: var(--muted); text-decoration: none; }
+.who:hover { color: var(--accent); }
 
 .card { background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 1.5rem; }
 .narrow { max-width: 360px; margin: 4rem auto; }
