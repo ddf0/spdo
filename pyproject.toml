@@ -1,6 +1,6 @@
 [project]
 name = "spdo"
-version = "0.1.0"
+version = "0.3.0"
 description = "Система интеллектуального поиска дубликатов обращений в техническую поддержку"
 readme = "README.md"
 license = "MIT"
