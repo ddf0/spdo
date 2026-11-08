@@ -11,7 +11,7 @@
   <header class="topbar">
     <a class="brand" href="/">СПДО</a>
     {% if user %}
-    <nav><a href="/tickets">{{ "Мои обращения" if user.role.value == "user" else "Реестр обращений" }}</a><a href="/tickets/new">Новое обращение</a>{% if user.role.value != "user" %}<a href="/stats">Статистика</a>{% endif %}</nav>
+    <nav><a href="/tickets">{{ "Мои обращения" if user.role.value == "user" else "Реестр обращений" }}</a><a href="/tickets/new">Новое обращение</a>{% if user.role.value != "user" %}<a href="/stats">Статистика</a>{% endif %}{% if user.role.value == "admin" %}<a href="/admin/users">Администрирование</a>{% endif %}</nav>
     <span class="who">{{ user.full_name }} · {{ role_labels[user.role] }}</span>
     <form method="post" action="/logout" class="inline">
       <input type="hidden" name="csrf_token" value="{{ csrf_token(request) }}">

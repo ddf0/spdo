@@ -7,6 +7,9 @@ from sqlalchemy.orm import Mapped, mapped_column
 
 from spdo.db.base import Base, CreatedAtMixin, pg_enum
 
+#: Наибольшая длина отображаемого имени.
+FULL_NAME_MAX = 200
+
 
 class Role(StrEnum):
     """Роль пользователя, определяющая его права."""
@@ -32,7 +35,7 @@ class User(CreatedAtMixin, Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     username: Mapped[str] = mapped_column(String(64), unique=True)
-    full_name: Mapped[str] = mapped_column(String(200))
+    full_name: Mapped[str] = mapped_column(String(FULL_NAME_MAX))
     role: Mapped[Role] = mapped_column(
         pg_enum(Role, "user_role"), default=Role.USER, server_default=Role.USER.value
     )

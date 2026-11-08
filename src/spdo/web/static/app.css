@@ -90,3 +90,7 @@ section.card form + form { margin-top: 1.25rem; padding-top: 1.25rem; border-top
 .tile .value { font-size: 2rem; font-weight: 700; margin: .25rem 0; font-variant-numeric: tabular-nums; }
 .ok { color: #1a7f37; }
 @media (max-width: 800px) { .tiles { grid-template-columns: 1fr; } }
+table.list td input:not([type=checkbox]), table.list td select { width: 100%; box-sizing: border-box; }
+/* формы строк таблицы: поля привязаны атрибутом form, сами формы не видны */
+table.list td form[id] { display: none; }
+table.list select.role { min-width: 10.5rem; }
