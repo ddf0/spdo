@@ -23,6 +23,7 @@ from spdo.recommendations.schemas import (
 from spdo.recommendations.suggest import Suggestion
 from spdo.relations.service import RelationError
 from spdo.tickets import dictionaries
+from spdo.tickets import service as tickets
 from spdo.tickets.access import TicketNotFoundError, TicketValidationError
 from spdo.tickets.transitions import TransitionError
 from spdo.users.deps import CurrentUser, DbSession, verify_csrf
@@ -48,7 +49,7 @@ def _http_error(exc: Exception) -> HTTPException:
 
 def _out(session: Session, user: CurrentUser, rec: Recommendation) -> RecommendationOut:
     """Рекомендация с данными найденного обращения из его карточки."""
-    card = service.card(session, user, rec.ticket_id)
+    card = service.recommended_card(session, user, rec)
     return RecommendationOut(
         id=rec.id,
         position=rec.position,
@@ -105,11 +106,14 @@ def search(body: SearchRequest, session: DbSession, user: CurrentUser) -> Search
         session.rollback()
         raise _http_error(exc) from exc
     recs = []
+    # Обращения рекомендаций — одним запросом; список удерживает их в сессии.
+    loaded = tickets.preload(session, [r.ticket_id for r in outcome.recommendations])
     for rec in outcome.recommendations:
         try:
             recs.append(_out(session, user, rec))
         except TicketNotFoundError:  # стало недоступным между подбором и ответом
             continue
+    del loaded
     session.commit()
     return SearchResponse(
         session_id=outcome.search_session.id,

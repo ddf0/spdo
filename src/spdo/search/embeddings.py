@@ -62,6 +62,7 @@ class Encoder:
         self._model = None
         self._failed_at: float | None = None
         self._lock = threading.Lock()
+        self._encode_lock = threading.Lock()  # см. encode
 
     def load(self) -> None:
         """Загружает модель и проверяет размерность её векторов.
@@ -115,15 +116,25 @@ class Encoder:
 
         Raises:
             SearchUnavailableError: Модель недоступна или вычисление не удалось.
+
+        Note:
+            Вычисления выполняются по одному: torch сам распараллеливает
+            вычисление на все ядра, а одновременные вызовы из потоков
+            обработчиков только конкурируют за ядра (у каждого потока своя
+            команда OpenMP) и под нагрузкой замедляют все запросы.
         """
         self.load()
         model = self._model
         if model is None:
             raise SearchUnavailableError(f"Модель {self.model_name} не загружена")
         try:
-            vectors = model.encode(
-                texts, batch_size=batch_size, normalize_embeddings=True, show_progress_bar=False
-            )
+            with self._encode_lock:
+                vectors = model.encode(
+                    texts,
+                    batch_size=batch_size,
+                    normalize_embeddings=True,
+                    show_progress_bar=False,
+                )
         except Exception as exc:  # noqa: BLE001 — нехватка памяти и др. = поиск недоступен
             raise SearchUnavailableError(f"Не удалось вычислить векторы: {exc}") from exc
         return np.asarray(vectors, dtype=np.float32)

@@ -12,6 +12,10 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 from pydantic import Field, PrivateAttr, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+#: Соединения сверх рабочих потоков: фоновая сборка и синхронизация
+#: лексического индекса читают зафиксированные записи отдельной сессией.
+BACKGROUND_CONNECTIONS = 3
+
 #: Значения ключа подписи сессий, считающиеся незаданными.
 UNSET_SECRET_KEYS = frozenset({"", "change-me"})
 
@@ -34,6 +38,22 @@ class Settings(BaseSettings):
         session_max_age: Время жизни сессии пользователя, секунды.
         session_https_only: Передавать cookie сессии только по HTTPS.
         password_rounds: Стоимость bcrypt (логарифм числа раундов).
+        worker_threads: Число потоков, в которых выполняются синхронные
+            обработчики запросов (пул потоков anyio).
+        db_pool_size: Постоянные соединения пула БД.
+        db_max_overflow: Дополнительные соединения пула сверх постоянных.
+            Пул должен быть не меньше ``worker_threads`` плюс
+            :data:`BACKGROUND_CONNECTIONS`: иначе под нагрузкой все потоки
+            ждут соединение, а соединения держат запросы, ожидающие поток
+            для сериализации ответа, — до тайм-аута пула ни один запрос не
+            завершается (выявлено нагрузочным испытанием на 50 соединениях).
+            Условие исключает такую остановку, пока одновременных запросов
+            не больше размера пула; при большем числе запросы снова ждут
+            соединение до тайм-аута, поэтому за обратным прокси или
+            параметром uvicorn ``--limit-concurrency`` число одновременных
+            запросов ограничивается. Пул одного процесса (по умолчанию до 50
+            соединений) должен помещаться в ``max_connections`` PostgreSQL
+            (по умолчанию 100) вместе с командами ``spdo`` и миграциями.
         login_max_failures: Число неудачных входов по одному имени
             пользователя за окно, после которого вход по нему временно
             запрещён.
@@ -113,6 +133,9 @@ class Settings(BaseSettings):
     session_max_age: int = 8 * 60 * 60
     session_https_only: bool = False
     password_rounds: int = 12
+    worker_threads: int = Field(default=40, ge=1, le=200)
+    db_pool_size: int = Field(default=20, ge=1)
+    db_max_overflow: int = Field(default=30, ge=0)
     login_max_failures: int = Field(default=5, ge=1)
     login_max_failures_ip: int = Field(default=30, ge=0)
     login_window_seconds: int = Field(default=900, ge=1)
@@ -154,9 +177,9 @@ class Settings(BaseSettings):
             Проверенный экземпляр настроек.
 
         Raises:
-            ValueError: Нарушено условие 0 < P2 < P1 ≤ 1, 1 ≤ N ≤ 10
-                или веса не конечны, отрицательны либо не дают в сумме 1,
-                или часовой пояс неизвестен.
+            ValueError: Нарушено условие 0 < P2 < P1 ≤ 1, 1 ≤ N ≤ 10,
+                веса не конечны, отрицательны либо не дают в сумме 1,
+                часовой пояс неизвестен или пул БД меньше пула потоков.
         """
         for p1, p2 in (
             (self.threshold_duplicate, self.threshold_related),
@@ -168,6 +191,11 @@ class Settings(BaseSettings):
             ZoneInfo(self.display_timezone)
         except (ZoneInfoNotFoundError, ValueError) as exc:
             raise ValueError(f"Неизвестный часовой пояс {self.display_timezone}") from exc
+        if self.db_pool_size + self.db_max_overflow < self.worker_threads + BACKGROUND_CONNECTIONS:
+            raise ValueError(
+                "Пул БД (db_pool_size + db_max_overflow) должен быть не меньше "
+                f"worker_threads + {BACKGROUND_CONNECTIONS}"
+            )
         if not 1 <= self.top_n <= 10:
             raise ValueError("Требуется 1 <= N <= 10")
         hybrid = (self.w_semantic, self.w_lexical, self.w_category, self.w_component)

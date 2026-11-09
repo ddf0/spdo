@@ -259,13 +259,17 @@ class HybridSearcher(SimilaritySearcher):
         """Объединяет семантический и лексический списки и считает составляющие."""
         snapshot = self._lexical.snapshot(session)
         vector = self.encoder.encode([query.text])[0].tolist()
-        lexical_ids = [d.ticket_id for d, _ in snapshot.search(query, _LEXICAL_ONLY, self.pool)]
+        sims = snapshot.similarities(query.text)  # один раз на запрос
+        found = snapshot.search(query, _LEXICAL_ONLY, self.pool, sims=sims)
+        lexical_ids = [d.ticket_id for d, _ in found]
         rows = {r.ticket_id: r for r in self._semantic(session, vector, query, None)}
         missing = [tid for tid in lexical_ids if tid not in rows]
         if missing:
             rows.update({r.ticket_id: r for r in self._semantic(session, vector, query, missing)})
         candidates = list(rows.values())
-        lex = snapshot.similarity_to(query.text, [r.text for r in candidates])
+        lex = snapshot.similarity_by_id(
+            query.text, sims, [(r.ticket_id, r.text) for r in candidates]
+        )
         return [
             (
                 row.ticket_id,
