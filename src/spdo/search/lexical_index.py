@@ -10,6 +10,7 @@ TF-IDF лежит в [0, 1] и не требует дополнительной 
 """
 
 import re
+from collections.abc import Sequence
 from dataclasses import dataclass
 
 import numpy as np
@@ -241,6 +242,38 @@ class LexicalIndex:
         q = self._vectorizer.transform([query]).T
         return np.asarray((self._vectorizer.transform(texts) @ q).todense()).ravel()
 
+    def similarity_by_id(
+        self, query: str, sims: np.ndarray, items: Sequence[tuple[int, str]]
+    ) -> np.ndarray:
+        """Лексическое сходство запроса с кандидатами по уже вычисленным строкам.
+
+        Для кандидата, текст которого в снимке совпадает с переданным
+        (актуальным в БД), берётся готовое значение из ``sims`` — результата
+        :meth:`similarities` для того же запроса; остальные тексты (снимок
+        ещё не догнал изменения) преобразуются словарём, как в
+        :meth:`similarity_to`. Результат совпадает с :meth:`similarity_to`,
+        но без повторного преобразования текстов кандидатов.
+
+        Args:
+            query: Текст запроса.
+            sims: Сходство запроса со всеми строками индекса.
+            items: Пары (номер обращения, актуальный текст).
+
+        Returns:
+            Косинусное сходство TF-IDF в порядке ``items``.
+        """
+        result = np.zeros(len(items))
+        stale = []
+        for i, (ticket_id, text) in enumerate(items):
+            row = self._row.get(ticket_id)
+            if row is not None and row < len(sims) and self._docs[row].text == text:
+                result[i] = sims[row]
+            else:
+                stale.append(i)
+        if stale:
+            result[stale] = self.similarity_to(query, [items[i][1] for i in stale])
+        return result
+
     def scores(self, text: str) -> dict[int, float]:
         """Возвращает лексическое сходство текста с каждым актуальным документом.
 
@@ -254,7 +287,11 @@ class LexicalIndex:
         return {self._docs[row].ticket_id: float(sims[row]) for row in self._row.values()}
 
     def search(
-        self, query: TicketQuery, weights: LexicalWeights, pool: int
+        self,
+        query: TicketQuery,
+        weights: LexicalWeights,
+        pool: int,
+        sims: np.ndarray | None = None,
     ) -> list[tuple[Document, dict[str, float]]]:
         """Подбирает документы-кандидаты и считает составляющие сходства.
 
@@ -265,11 +302,14 @@ class LexicalIndex:
             query: Запрос.
             weights: Веса составляющих.
             pool: Размер пула кандидатов до ранжирования по S.
+            sims: Готовый результат :meth:`similarities` для текста
+                запроса, если он уже вычислен.
 
         Returns:
             Пары (документ, составляющие и итог ``score``), по убыванию S.
         """
-        sims = self.similarities(query.text)
+        if sims is None:
+            sims = self.similarities(query.text)
         visible = [
             i
             for i, d in enumerate(self._docs)
