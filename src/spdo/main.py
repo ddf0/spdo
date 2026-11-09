@@ -6,6 +6,7 @@ from collections.abc import AsyncIterator, Awaitable, Callable
 from contextlib import asynccontextmanager
 from urllib.parse import quote
 
+import anyio.to_thread
 from fastapi import FastAPI, Request, status
 from fastapi.responses import JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -55,7 +56,7 @@ def _load_search_params() -> None:
 
 @asynccontextmanager
 async def lifespan(_: FastAPI) -> AsyncIterator[None]:
-    """Подключает фильтр секретов к журналам и прогревает поиск в фоне.
+    """Подключает фильтр секретов к журналам, задаёт пул потоков, прогревает поиск.
 
     Предупреждает, если ключ подписи сессий не задан и сгенерирован.
 
@@ -63,6 +64,8 @@ async def lifespan(_: FastAPI) -> AsyncIterator[None]:
         Управление приложению на время работы.
     """
     logsafe.install()
+    # Пул потоков для синхронных обработчиков согласован с пулом БД.
+    anyio.to_thread.current_default_thread_limiter().total_tokens = settings.worker_threads
     _load_search_params()
     if settings.search_warm_up:
         threading.Thread(target=_warm_up_search, name="search-warm-up", daemon=True).start()
