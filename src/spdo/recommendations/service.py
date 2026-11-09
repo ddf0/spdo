@@ -227,7 +227,9 @@ def run_search(
         session.flush()
         return SearchOutcome(record, [], True, UNAVAILABLE_NOTICE)
     record.params = {**searcher.params(tuning), "top_n": top_n}
+    loaded = tickets.preload(session, [c.ticket_id for c in found])  # без запроса на кандидата
     _add_recommendations(record, _unique_mains(session, actor, found, exclude)[:top_n])
+    del loaded
     session.flush()
     return SearchOutcome(
         record, list(record.recommendations), False, None, _suggestion(session, found)
@@ -331,6 +333,30 @@ def card(session: Session, actor: Actor, ticket_id: int) -> tickets.TicketCard:
     """
     shown = was_recommended(session, actor, ticket_id)
     return tickets.get_card(session, actor, ticket_id, shown=shown)
+
+
+def recommended_card(session: Session, actor: Actor, rec: Recommendation) -> tickets.TicketCard:
+    """Карточка обращения из рекомендации (ответ подбора и отклонения).
+
+    Рекомендация из сеанса самого пользователя означает, что обращение ему
+    показано, поэтому повторная проверка по БД (:func:`was_recommended`)
+    не нужна. Для чужого сеанса (оператор отклоняет рекомендацию
+    пользователя) выполняется полная проверка :func:`card`.
+
+    Args:
+        session: Сессия БД.
+        actor: Пользователь.
+        rec: Рекомендация.
+
+    Returns:
+        Карточка обращения.
+
+    Raises:
+        TicketNotFoundError: Обращение недоступно пользователю.
+    """
+    if rec.session.user_id != actor.id:
+        return card(session, actor, rec.ticket_id)
+    return tickets.get_card(session, actor, rec.ticket_id, shown=True)
 
 
 def rate(session: Session, actor: Actor, solution_id: int, helped: bool) -> None:

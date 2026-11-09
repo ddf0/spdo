@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 
 from sqlalchemy import Select, func, select
 from sqlalchemy.dialects.postgresql import insert
-from sqlalchemy.orm import Session
+from sqlalchemy.orm import Session, joinedload
 from sqlalchemy.sql import Subquery
 
 from spdo.analytics.journal import record_action
@@ -247,6 +247,35 @@ def get_ticket(session: Session, actor: Actor, ticket_id: int, *, lock: bool = F
     if ticket is None or not can_view(actor, ticket):
         raise TicketNotFoundError(f"Обращение {ticket_id} не найдено")
     return ticket
+
+
+def preload(session: Session, ticket_ids: list[int]) -> list[Ticket]:
+    """Загружает обращения одним запросом вместе с категорией, компонентом и решением.
+
+    Пока вызывающий код хранит возвращённый список, ``session.get`` и
+    обращения к связям этих обращений не выполняют запросов к БД (сессия
+    хранит объекты по слабым ссылкам, поэтому список нужно удерживать).
+    Так подбор не делает по несколько запросов на каждого кандидата.
+
+    Args:
+        session: Сессия БД.
+        ticket_ids: Номера обращений.
+
+    Returns:
+        Загруженные обращения (порядок не определён).
+    """
+    if not ticket_ids:
+        return []
+    stmt = (
+        select(Ticket)
+        .where(Ticket.id.in_(ticket_ids))
+        .options(
+            joinedload(Ticket.category),
+            joinedload(Ticket.component),
+            joinedload(Ticket.solution),
+        )
+    )
+    return list(session.scalars(stmt).unique())
 
 
 def get_link_target(session: Session, actor: Actor, ticket_id: int) -> Ticket:
