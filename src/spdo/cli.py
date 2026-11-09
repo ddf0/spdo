@@ -3,7 +3,7 @@
 Команды:
     create-user: Создать пользователя (в том числе первого администратора).
     close-expired: Закрыть решённые обращения, не подтверждённые в срок.
-    dataset: Подготовка, проверка и загрузка эталонного набора.
+    dataset: Эталонный набор; ``dataset generate`` — нагрузочный набор.
     reindex: Перестроить поисковый индекс по всем обращениям.
     eval: Измерить качество подбора на эталонном наборе.
     tune: Подобрать веса и пороги режима на настроечной части.
@@ -19,9 +19,9 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
-from sqlalchemy import select
+from sqlalchemy import func, make_url, select
 
-from spdo.analytics import dataset, evaluation, loader, measurements, sodd
+from spdo.analytics import dataset, evaluation, generator, loader, measurements, sodd
 from spdo.config import SearchMode, settings
 from spdo.db import models  # noqa: F401  регистрирует таблицы всех модулей
 from spdo.db.session import SessionLocal
@@ -33,6 +33,7 @@ from spdo.search.lexical import ALGORITHM_VERSION as LEXICAL_VERSION
 from spdo.search.lexical import LexicalWeights
 from spdo.tickets import service as tickets
 from spdo.tickets.access import PermissionDeniedError, TicketValidationError
+from spdo.tickets.models import Ticket
 from spdo.users import service
 from spdo.users.models import Role, User
 from spdo.users.security import PasswordPolicyError
@@ -257,6 +258,75 @@ def cmd_dataset_load(args: argparse.Namespace) -> int:
         session.commit()
     path = loader.finalize_mapping(directory)
     print(f"Загружено обращений: {len(mapping)}; соответствие номеров — {path}")
+    return 0
+
+
+def _confirm_target(args: argparse.Namespace) -> bool:
+    """Показывает целевую БД и спрашивает подтверждение (без ``--yes``)."""
+    target = make_url(settings.database_url).render_as_string(hide_password=True)
+    print(f"Целевая БД: {target}", file=sys.stderr)
+    if args.yes:
+        return True
+    if not sys.stdin.isatty():
+        print("Ошибка: подтвердите запись в эту БД флагом --yes", file=sys.stderr)
+        return False
+    answer = input(f"Создать {args.count} обращений в этой БД? [y/N] ")
+    return answer.strip().lower() in {"y", "yes", "д", "да"}
+
+
+def cmd_dataset_generate(args: argparse.Namespace) -> int:
+    """Заполняет БД нагрузочным набором обращений по шаблонам эталонного.
+
+    Команда предназначена для отдельной базы нагрузочных испытаний: она
+    показывает целевую БД и требует подтверждения, а в непустой реестр
+    добавляет обращения только с ``--append`` (зерно тогда сдвигается на
+    число имеющихся обращений, чтобы не повторять тексты прошлого запуска).
+
+    Args:
+        args: Разобранные аргументы: ``dir``, ``admin``, ``count``,
+            ``authors``, ``seed``, ``days``, ``append``, ``yes``.
+
+    Returns:
+        Код завершения: 0 — успех, 1 — ошибка или отказ.
+    """
+    try:
+        templates = dataset.read(Path(args.dir)).tickets
+    except (dataset.DatasetError, OSError) as exc:
+        print(f"Ошибка: {exc}", file=sys.stderr)
+        return 1
+    if not _confirm_target(args):
+        return 1
+    with SessionLocal() as session:
+        admin = _find_admin(session, args.admin)
+        if admin is None:
+            return 1
+        existing = session.scalar(select(func.count()).select_from(Ticket)) or 0
+        if existing and not args.append:
+            print(
+                f"Ошибка: в реестре уже {existing} обращений; добавить к ним — --append",
+                file=sys.stderr,
+            )
+            return 1
+        try:
+            items = generator.generate(templates, args.count, args.authors, args.seed + existing)
+            created = generator.populate(
+                session,
+                admin,
+                items,
+                days=args.days,
+                progress=lambda n: print(f"  создано {n}", file=sys.stderr),
+            )
+        except (
+            ValueError,
+            KeyError,
+            generator.GenerationError,
+            PermissionDeniedError,
+            TicketValidationError,
+        ) as exc:
+            print(f"Ошибка: {exc}", file=sys.stderr)
+            return 1
+        session.commit()
+    print(f"Создано обращений: {len(created)} (№ {created[0]}–{created[-1]})")
     return 0
 
 
@@ -497,6 +567,16 @@ def _add_dataset_commands(commands: argparse._SubParsersAction) -> None:
     load.add_argument("dir", help="каталог набора")
     load.add_argument("--admin", required=True, help="администратор — автор обращений")
     load.set_defaults(handler=cmd_dataset_load)
+    gen = sub.add_parser("generate", help="заполнить БД нагрузочным набором обращений")
+    gen.add_argument("dir", help="каталог эталонного набора — источника шаблонов")
+    gen.add_argument("--admin", required=True, help="администратор — меняет статусы")
+    gen.add_argument("--count", type=positive_int, default=5000, help="число обращений")
+    gen.add_argument("--authors", type=positive_int, default=50, help="число авторов")
+    gen.add_argument("--seed", type=int, default=1, help="зерно генератора")
+    gen.add_argument("--days", type=positive_int, default=365, help="период дат обращений, дней")
+    gen.add_argument("--append", action="store_true", help="добавить к непустому реестру")
+    gen.add_argument("--yes", action="store_true", help="не спрашивать подтверждения")
+    gen.set_defaults(handler=cmd_dataset_generate)
 
 
 def build_parser() -> argparse.ArgumentParser:
