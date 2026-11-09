@@ -19,7 +19,7 @@
 set -euo pipefail
 
 if [ $# -lt 2 ] || [ -z "${SPDO_LOAD_PASSWORD:-}" ]; then
-  sed -n '5s/^# */Использование: /p' "$0" >&2
+  echo "Использование: SPDO_LOAD_PASSWORD=... $0 <адрес> <каталог отчёта> [соединения...]" >&2
   exit 2
 fi
 BASE=${1%/}
@@ -29,6 +29,19 @@ CONNECTIONS=${*:-10 20 50}
 DURATION=${SPDO_LOAD_DURATION:-30s}
 SCENARIOS=${SPDO_LOAD_SCENARIOS:-search registry card incidents}
 HERE=$(cd "$(dirname "$0")" && pwd)
+
+# Число потоков wrk — делитель числа соединений: wrk делит соединения между
+# потоками нацело, и при 10 соединениях на 4 потока открыл бы только 8.
+threads_for() {
+  local t
+  for t in 4 5 3 2; do
+    if [ $(($1 % t)) -eq 0 ] && [ "$1" -ge "$t" ]; then
+      echo "$t"
+      return
+    fi
+  done
+  echo 1
+}
 
 docker build -q -t spdo-wrk "$HERE" >/dev/null
 mkdir -p "$OUT"
@@ -41,17 +54,22 @@ for scenario in $SCENARIOS; do
     user=${SPDO_LOAD_OPERATOR:-operator}
   fi
   # Новый вход перед каждым сценарием: сеанс не зависит от предыдущих прогонов.
-  eval "$(python3 "$HERE/session.py" "$BASE" "$user")"
+  # Вывод сохраняется отдельной командой: ошибка входа прерывает скрипт
+  # (set -e не срабатывает на ошибку внутри eval "$(...)").
+  unset SPDO_COOKIE SPDO_CSRF
+  credentials=$(python3 "$HERE/session.py" "$BASE" "$user")
+  eval "$credentials"
   export SPDO_COOKIE SPDO_CSRF SPDO_MAX_TICKET=${SPDO_MAX_TICKET:-5000}
   for c in $CONNECTIONS; do
-    threads=$((c < 4 ? c : 4))
+    threads=$(threads_for "$c")
     log="$OUT/$scenario-c$c.txt"
     echo "== $scenario, соединений: $c, пользователь: $user" | tee "$log"
     docker run --rm --network host \
       -e SPDO_COOKIE -e SPDO_CSRF -e SPDO_MAX_TICKET \
       spdo-wrk -t"$threads" -c"$c" -d"$DURATION" --timeout 10s --latency \
-      -s "/scripts/$scenario.lua" "$BASE" 2>&1 | tee -a "$log"
-    # Ошибка в сценарии не прерывает wrk: он шлёт GET / без сценария.
+      -s "/scripts/$scenario.lua" "$BASE" 2>&1 | tee -a "$log" || true
+    # Ошибка в сценарии не всегда прерывает wrk (он шлёт GET / без
+    # сценария), поэтому прогон без строки RESULT считается неудачным.
     if ! result=$(grep '^RESULT' "$log"); then
       echo "Ошибка: сценарий $scenario не выполнен, см. $log" >&2
       exit 1

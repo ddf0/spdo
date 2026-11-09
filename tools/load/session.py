@@ -48,10 +48,13 @@ def login(base: str, username: str, password: str) -> tuple[str, str]:
         {"username": username, "password": password, "csrf_token": form.group(1)}
     ).encode()
     opener.open(f"{base}/login", data=data).read()
-    home = opener.open(f"{base}/").read().decode()
-    meta = META_TOKEN.search(home)
-    if meta is None:
+    home = opener.open(f"{base}/")
+    # Без входа главная перенаправляет на /login; CSRF-токен есть и там.
+    if urllib.parse.urlsplit(home.geturl()).path == "/login":
         raise RuntimeError("Вход не выполнен: проверьте имя и пароль")
+    meta = META_TOKEN.search(home.read().decode())
+    if meta is None:
+        raise RuntimeError("На главной странице нет CSRF-токена")
     cookie = "; ".join(f"{c.name}={c.value}" for c in jar)
     return cookie, meta.group(1)
 

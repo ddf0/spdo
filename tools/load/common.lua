@@ -17,11 +17,12 @@ local threads = {}
 
 function M.setup(thread)
   table.insert(threads, thread)
+  thread:set("thread_id", #threads)
 end
 
 -- wrk считает ошибкой только статус >= 400; перенаправление на /login
 -- (сеанс потерян) тоже нужно считать неудачей, поэтому учитывается всё,
--- кроме 200 и 201.
+-- кроме 200 и 201. Переменная глобальная: done читает её через thread:get.
 non_ok = 0
 
 function M.response(status, headers, body)
@@ -31,7 +32,8 @@ function M.response(status, headers, body)
 end
 
 -- Итоговая строка RESULT: wrk --latency не выводит 95-й процентиль,
--- а требование ТЗ задано именно для p95.
+-- а требование ТЗ задано именно для p95. errors — ошибки соединения,
+-- чтения, записи и тайм-ауты; ответы с кодом ошибки HTTP входят в non_ok.
 function M.report(summary, latency, requests)
   local e = summary.errors
   local seconds = summary.duration / 1e6
@@ -48,11 +50,10 @@ function M.report(summary, latency, requests)
     latency:percentile(99) / 1000, latency.max / 1000))
 end
 
--- Разные потоки wrk получают разные последовательности случайных чисел.
-local thread_seed = 0
+-- Разные потоки wrk получают разные последовательности случайных чисел:
+-- номер потока задаётся в setup (thread_id — глобальная переменная потока).
 function M.seed()
-  thread_seed = thread_seed + 1
-  math.randomseed(os.time() + thread_seed * 7919 + math.floor(os.clock() * 1e6))
+  math.randomseed(os.time() + (thread_id or 0) * 7919)
 end
 
 return M

@@ -14,8 +14,12 @@
 
 Синхронные обработчики FastAPI выполняются в пуле потоков, а профилировщики
 Python видят только свой поток, поэтому профилируется каждый вызов в пуле
-(подменяется ``run_in_threadpool``) и профили затем объединяются.
-Время запросов без профилировщика сохраняется в ``timings.txt``.
+(подменяются ``run_in_threadpool`` и вход и выход зависимостей-генераторов,
+например сессии БД) и профили затем объединяются. Асинхронные промежуточные
+обработчики (сессия, заголовки) и сам сервер не профилируются; их долю
+показывает сравнение суммарного времени профиля со временем запросов без
+профилировщика (``timings.txt``). Профилируемые запросы обращаются к другим
+номерам обращений, чем прогревочные, чтобы не все данные были в кеше.
 
 Пример::
 
@@ -38,6 +42,7 @@ from pathlib import Path
 
 os.environ.setdefault("SPDO_SEARCH_WARM_UP", "false")  # прогрев выполняется ниже синхронно
 
+import fastapi.concurrency as fastapi_concurrency  # noqa: E402
 import fastapi.dependencies.utils as fastapi_deps  # noqa: E402
 import fastapi.routing as fastapi_routing  # noqa: E402
 from fastapi.testclient import TestClient  # noqa: E402
@@ -93,6 +98,28 @@ class ThreadpoolProfiler:
 
         fastapi_routing.run_in_threadpool = run
         fastapi_deps.run_in_threadpool = run
+        self._patch_generator_dependencies()
+
+    def _patch_generator_dependencies(self) -> None:
+        """Профилирует вход и выход синхронных зависимостей-генераторов."""
+        original = fastapi_concurrency.contextmanager_in_threadpool
+        profiler = self
+
+        class Profiled:
+            def __init__(self, cm: object) -> None:
+                self._cm = cm
+
+            def __enter__(self) -> object:
+                return profiler._call(self._cm.__enter__)
+
+            def __exit__(self, *exc: object) -> object:
+                return profiler._call(self._cm.__exit__, *exc)
+
+        def wrapped(cm: object) -> object:
+            return original(Profiled(cm))
+
+        fastapi_concurrency.contextmanager_in_threadpool = wrapped
+        fastapi_deps.contextmanager_in_threadpool = wrapped
 
     def _call(self, func: Callable, *args: object, **kwargs: object) -> object:
         """Выполняет вызов под профилировщиком текущего вида."""
@@ -118,8 +145,14 @@ class ThreadpoolProfiler:
         """Начинает сбор профилей указанного вида."""
         self._cprofiles, self._sessions, self.kind = [], [], kind
 
+    def _captured(self, items: list) -> None:
+        """Проверяет, что подмена сработала и вызовы были перехвачены."""
+        if not items:
+            raise RuntimeError("Вызовы в пуле потоков не перехвачены: подмена FastAPI не сработала")
+
     def stats(self) -> pstats.Stats:
         """Объединённая статистика cProfile."""
+        self._captured(self._cprofiles)
         first, *rest = self._cprofiles
         stats = pstats.Stats(first)
         for prof in rest:
@@ -128,6 +161,7 @@ class ThreadpoolProfiler:
 
     def session(self) -> ProfileSession:
         """Объединённая сессия pyinstrument."""
+        self._captured(self._sessions)
         return functools.reduce(ProfileSession.combine, self._sessions)
 
 
@@ -139,10 +173,14 @@ def login(client: TestClient, username: str, password: str) -> str:
     """
     client.cookies.clear()
     form = FORM_TOKEN.search(client.get("/login").text)
+    if form is None:
+        raise RuntimeError("На странице входа нет CSRF-токена")
     data = {"username": username, "password": password, "csrf_token": form.group(1)}
     client.post("/login", data=data)
-    meta = META_TOKEN.search(client.get("/").text)
-    if meta is None:
+    home = client.get("/")
+    # Без входа главная перенаправляет на /login; CSRF-токен есть и там.
+    meta = META_TOKEN.search(home.text)
+    if home.url.path == "/login" or meta is None:
         raise RuntimeError(f"Вход пользователя {username} не выполнен")
     return meta.group(1)
 
@@ -163,14 +201,16 @@ def scenarios(args: argparse.Namespace) -> dict[str, tuple[str, Callable[[TestCl
     }
 
 
-def run(client: TestClient, request: Callable, csrf: str, count: int) -> list[float]:
-    """Выполняет ``count`` запросов и возвращает их время, мс.
+def run(
+    client: TestClient, request: Callable, csrf: str, count: int, offset: int = 0
+) -> list[float]:
+    """Выполняет ``count`` запросов (номера ``offset`` …) и возвращает их время, мс.
 
     Raises:
         RuntimeError: Ответ не 200.
     """
     times = []
-    for i in range(count):
+    for i in range(offset, offset + count):
         start = time.perf_counter()
         response = request(client, csrf, i)
         times.append((time.perf_counter() - start) * 1000)
@@ -230,10 +270,10 @@ def main(argv: list[str] | None = None) -> int:
             )
             print(timings[-1])
             profiler.start("cprofile")
-            run(client, request, csrf, args.requests)
+            run(client, request, csrf, args.requests, offset=args.requests)
             write_cprofile(profiler.stats(), args.out, name)
             profiler.start("pyinstrument")
-            run(client, request, csrf, args.requests)
+            run(client, request, csrf, args.requests, offset=2 * args.requests)
             session = profiler.session()
             (args.out / f"{name}.html").write_text(HTMLRenderer().render(session), "utf-8")
             tree = ConsoleRenderer(unicode=True, color=False, show_all=False).render(session)
