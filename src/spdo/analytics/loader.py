@@ -15,6 +15,7 @@
 
 import csv
 import os
+from collections.abc import Iterable, Mapping
 from pathlib import Path
 
 from sqlalchemy import func, select
@@ -36,16 +37,26 @@ class AlreadyLoadedError(RuntimeError):
     """Набор уже загружен: найден файл соответствия идентификаторов."""
 
 
-def _dictionary_ids(
-    session: Session, actor: Actor, data: Dataset
+def ensure_dictionaries(
+    session: Session, actor: Actor, rows: Iterable[Mapping[str, str]]
 ) -> tuple[dict[str, int], dict[str, int]]:
-    """Создаёт недостающие категории и компоненты, возвращает их номера по имени."""
+    """Создаёт недостающие категории и компоненты строк набора.
+
+    Args:
+        session: Сессия БД.
+        actor: Администратор.
+        rows: Строки с полями ``category`` и ``component``.
+
+    Returns:
+        Номера категорий и компонентов по имени в нижнем регистре.
+    """
+    rows = list(rows)
     categories = {c.name.lower(): c.id for c in dictionaries.list_categories(session)}
     components = {c.name.lower(): c.id for c in dictionaries.list_components(session)}
-    for name in sorted({t["category"] for t in data.tickets}):
+    for name in sorted({t["category"] for t in rows}):
         if name.lower() not in categories:
             categories[name.lower()] = dictionaries.create_category(session, actor, name).id
-    for name in sorted({t["component"] for t in data.tickets}):
+    for name in sorted({t["component"] for t in rows}):
         if name.lower() not in components:
             components[name.lower()] = dictionaries.create_component(session, actor, name).id
     return categories, components
@@ -74,7 +85,7 @@ def load(session: Session, actor: Actor, data: Dataset, directory: Path) -> dict
     require_admin(actor)
     if (directory / DB_IDS_FILE).exists():
         raise AlreadyLoadedError(f"Набор уже загружен: есть {directory / DB_IDS_FILE}")
-    categories, components = _dictionary_ids(session, actor, data)
+    categories, components = ensure_dictionaries(session, actor, data.tickets)
     mapping: dict[str, int] = {}
     for row in data.tickets:
         ticket = tickets.create_ticket(
