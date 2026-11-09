@@ -1,4 +1,4 @@
-.PHONY: install up down run migrate lint fmt test metrics metrics-before metrics-after metrics-compare docs-api docs-api-docx docs-gost uml
+.PHONY: install up down run migrate lint fmt test load-test profile metrics metrics-before metrics-after metrics-compare docs-api docs-api-docx docs-gost uml
 
 MD2GOST ?= tools/md2gost/md2gost/md2gost.js
 PLANTUML ?= plantuml
@@ -30,6 +30,17 @@ fmt:
 
 test:
 	uv run pytest
+
+# Нагрузочные испытания и профилирование на БД с нагрузочным набором
+# (spdo dataset generate); пароль пользователей — SPDO_LOAD_PASSWORD.
+LOAD_URL ?= http://127.0.0.1:8000
+LOAD_OUT ?= reports/load
+
+load-test:
+	tools/load/run.sh $(LOAD_URL) $(LOAD_OUT)
+
+profile:
+	uv run python tools/profile_app.py $(LOAD_OUT)/profile
 
 metrics:
 	@mkdir -p reports/$(or $(TAG),current)

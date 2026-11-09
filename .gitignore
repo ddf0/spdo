@@ -25,3 +25,6 @@ docs/gost/build/
 .idea/
 .vscode/
 .DS_Store
+
+# Результаты нагрузочных испытаний и профилирования (make load-test, make profile)
+reports/load/
