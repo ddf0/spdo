@@ -63,6 +63,16 @@ uv run spdo tune data/synthetic --mode hybrid
 uv run spdo dataset generate data/synthetic --admin <администратор> --count 5000
 ```
 
+На этой БД (пользователи сценариев — обычный `user1` и оператор
+`operator` с паролем из `SPDO_LOAD_PASSWORD`):
+
+- `make load-test LOAD_URL=http://127.0.0.1:8000` — нагрузочные испытания
+  `wrk` (подбор, реестр, карточка, массовые обращения при 10, 20 и 50
+  соединениях; wrk собирается в контейнере, `tools/load/run.sh`), итог с p95
+  в `reports/load/summary.txt`;
+- `make profile` — профили обработки запросов `cProfile` и `pyinstrument`
+  (`tools/profile_app.py`) в `reports/load/profile/`.
+
 ## Документация
 
 - на код (Sphinx, аналог Doxygen): `make docs-api` → HTML в `docs/api/_build/html/`,
